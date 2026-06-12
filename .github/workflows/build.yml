@@ -68,7 +68,10 @@ jobs:
 
           cp .build/arm64-apple-macosx/release/Clipy "$APP_DIR/Contents/MacOS/Clipy"
           chmod +x "$APP_DIR/Contents/MacOS/Clipy"
-          cp Resources/Clipy.entitlements "$APP_DIR/Contents/Resources/"
+          cp Resources/Info.plist "$APP_DIR/Contents/Info.plist"
+
+          # Copy SPM-generated resource bundles (e.g. KeyboardShortcuts_KeyboardShortcuts.bundle)
+          find .build/arm64-apple-macosx/release -maxdepth 1 -name "*.bundle" -exec cp -r {} "$APP_DIR/Contents/Resources/" \;
 
           ls -lhR "$APP_DIR"
 
