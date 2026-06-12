@@ -17,20 +17,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Resolve dependencies
-        run: swift package resolve
+      - name: Build arm64
+        run: swift build -c release --arch arm64 -Xswiftc -suppress-warnings
 
-      - name: Build (release)
-        run: |
-          swift build -c release \
-            --arch arm64 \
-            --arch x86_64 \
-            -Xswiftc -suppress-warnings
+      - name: Build x86_64
+        run: swift build -c release --arch x86_64 -Xswiftc -suppress-warnings
 
-      - name: Verify binary exists
+      - name: Verify binaries
         run: |
-          ls -lh .build/apple/Products/Release/Clipy || \
-          ls -lh .build/release/Clipy
+          ls -lh .build/arm64-apple-macosx/release/Clipy
+          ls -lh .build/x86_64-apple-macosx/release/Clipy
 
   package:
     name: Package DMG
@@ -42,57 +38,49 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Resolve dependencies
-        run: swift package resolve
+      - name: Build arm64
+        run: swift build -c release --arch arm64 -Xswiftc -suppress-warnings
 
-      - name: Build universal release binary
+      - name: Build x86_64
+        run: swift build -c release --arch x86_64 -Xswiftc -suppress-warnings
+
+      - name: Create universal binary with lipo
         run: |
-          swift build -c release \
-            --arch arm64 \
-            --arch x86_64 \
-            -Xswiftc -suppress-warnings
+          lipo -create \
+            .build/arm64-apple-macosx/release/Clipy \
+            .build/x86_64-apple-macosx/release/Clipy \
+            -output .build/Clipy-universal
+          file .build/Clipy-universal
 
       - name: Assemble .app bundle
         run: |
           set -e
           APP_DIR="dist/Clipy.app"
-          MACOS_DIR="$APP_DIR/Contents/MacOS"
-          RESOURCES_DIR="$APP_DIR/Contents/Resources"
+          mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 
-          mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
+          cp .build/Clipy-universal "$APP_DIR/Contents/MacOS/Clipy"
+          chmod +x "$APP_DIR/Contents/MacOS/Clipy"
+          cp Resources/Clipy.entitlements "$APP_DIR/Contents/Resources/"
 
-          if [ -f ".build/apple/Products/Release/Clipy" ]; then
-            cp ".build/apple/Products/Release/Clipy" "$MACOS_DIR/Clipy"
-          else
-            cp ".build/release/Clipy" "$MACOS_DIR/Clipy"
-          fi
-
-          chmod +x "$MACOS_DIR/Clipy"
-          cp "Resources/Clipy.entitlements" "$RESOURCES_DIR/"
-
-          echo "App bundle assembled at $APP_DIR"
           ls -lhR "$APP_DIR"
 
-      - name: Ad-hoc sign (no Apple Developer account required)
+      - name: Ad-hoc sign
         run: |
           codesign \
-            --force \
-            --deep \
-            --sign - \
-            --entitlements "Resources/Clipy.entitlements" \
+            --force --deep --sign - \
+            --entitlements Resources/Clipy.entitlements \
             --options runtime \
-            "dist/Clipy.app"
+            dist/Clipy.app
 
-          codesign --verify --deep --strict "dist/Clipy.app"
-          echo "Ad-hoc signing complete"
+          codesign --verify --deep --strict dist/Clipy.app
+          echo "Signing OK"
 
       - name: Create DMG
         run: |
           hdiutil create \
             -volname "Clipy" \
-            -srcfolder "dist/Clipy.app" \
-            -ov \
-            -format UDZO \
+            -srcfolder dist/Clipy.app \
+            -ov -format UDZO \
             "dist/Clipy-${{ github.ref_name }}.dmg"
 
           ls -lh "dist/Clipy-${{ github.ref_name }}.dmg"
