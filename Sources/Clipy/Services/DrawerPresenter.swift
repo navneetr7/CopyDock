@@ -273,9 +273,9 @@ final class DrawerPresenter {
             forName: .clipyDrawerDragDidEnd, object: nil, queue: .main
         ) { [weak self] notification in
             guard let self else { return }
+            let raw = notification.userInfo?["operation"] as? UInt ?? 0
             MainActor.assumeIsolated {
                 self.drawerDragInProgress = false
-                let raw = notification.userInfo?["operation"] as? UInt ?? 0
                 let operation = NSDragOperation(rawValue: raw)
                 guard operation != [], self.isVisible, self.displayMode == .expanded else { return }
                 self.minimize()
@@ -295,11 +295,12 @@ final class DrawerPresenter {
             object: nil, queue: .main
         ) { [weak self] notification in
             guard let self else { return }
+            let pid = (notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.processIdentifier
             MainActor.assumeIsolated {
                 guard self.isVisible, self.displayMode == .expanded else { return }
                 guard !self.shouldBlockAutoMinimize() else { return }
-                guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
-                if app.processIdentifier != ProcessInfo.processInfo.processIdentifier {
+                guard let pid else { return }
+                if pid != ProcessInfo.processInfo.processIdentifier {
                     self.minimize()
                 }
             }
