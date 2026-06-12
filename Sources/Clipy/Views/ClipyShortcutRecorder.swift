@@ -88,6 +88,7 @@ struct ClipyShortcutRecorder: View {
     @State private var state: RecorderState
 
     init(name: KeyboardShortcuts.Name) {
+        self.name = name
         _state = State(initialValue: RecorderState(name: name))
     }
 
