@@ -17,6 +17,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Select Xcode 26
+        run: |
+          XCODE=$(ls /Applications | grep -E '^Xcode_26' | sort -V | tail -1)
+          if [ -n "$XCODE" ]; then
+            sudo xcode-select -s "/Applications/$XCODE/Contents/Developer"
+            echo "Selected: $XCODE"
+          else
+            echo "Xcode 26 not found, using default: $(xcode-select -p)"
+          fi
+          swift --version
+
       - name: Build arm64
         run: swift build -c release --arch arm64 -Xswiftc -suppress-warnings
 
@@ -37,6 +48,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Select Xcode 26
+        run: |
+          XCODE=$(ls /Applications | grep -E '^Xcode_26' | sort -V | tail -1)
+          if [ -n "$XCODE" ]; then
+            sudo xcode-select -s "/Applications/$XCODE/Contents/Developer"
+            echo "Selected: $XCODE"
+          else
+            echo "Xcode 26 not found, using default: $(xcode-select -p)"
+          fi
+          swift --version
 
       - name: Build arm64
         run: swift build -c release --arch arm64 -Xswiftc -suppress-warnings

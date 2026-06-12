@@ -2,7 +2,7 @@
 
 A lightweight, native macOS clipboard manager that lives in a floating drawer at the edge of your screen. Built entirely in Swift and SwiftUI — no Electron, no web views, no background daemons.
 
-**Requires macOS 14 (Sonoma) or later · Apple Silicon + Intel (universal binary)**
+**Requires macOS 26 (Tahoe) or later · Apple Silicon + Intel (universal binary)**
 
 ---
 
