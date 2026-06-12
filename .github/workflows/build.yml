@@ -11,14 +11,11 @@ on:
 jobs:
   build:
     name: Build
-    runs-on: macos-14
+    runs-on: macos-15
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer
 
       - name: Resolve dependencies
         run: swift package resolve
@@ -37,16 +34,13 @@ jobs:
 
   package:
     name: Package DMG
-    runs-on: macos-14
+    runs-on: macos-15
     needs: build
     if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer
 
       - name: Resolve dependencies
         run: swift package resolve
@@ -67,7 +61,6 @@ jobs:
 
           mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 
-          # Copy binary (universal from fat build, or single arch fallback)
           if [ -f ".build/apple/Products/Release/Clipy" ]; then
             cp ".build/apple/Products/Release/Clipy" "$MACOS_DIR/Clipy"
           else
@@ -75,9 +68,6 @@ jobs:
           fi
 
           chmod +x "$MACOS_DIR/Clipy"
-
-          # Info.plist is embedded via linkerSettings in Package.swift
-          # Copy entitlements
           cp "Resources/Clipy.entitlements" "$RESOURCES_DIR/"
 
           echo "App bundle assembled at $APP_DIR"
