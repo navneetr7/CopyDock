@@ -1,0 +1,44 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+
+# Xcode / Swift
+.build/
+.swiftpm/xcode/xcuserdata/
+*.xcuserstate
+*.xcscheme
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# SPM
+.build/
+
+# Build artifacts
+dist/
+*.dmg
+*.pkg
+*.app
+
+# Blobs (user clipboard data — never commit)
+Clipy/Blobs/
+
+# Environment / secrets
+.env
+*.key
+*.p12
+*.mobileprovision
+*.provisionprofile
+
+# Editor
+.vscode/
+*.swp
+*.swo
+*~
