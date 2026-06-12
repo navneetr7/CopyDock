@@ -59,34 +59,22 @@ jobs:
           fi
           swift --version
 
-      - name: Build (first pass — generates DerivedSources)
+      - name: Build (first pass - generates DerivedSources)
         run: swift build -c release --arch arm64 -Xswiftc -suppress-warnings
 
       - name: Patch Bundle.module to use resourceURL
         run: |
-          # SPM generates Bundle.main.bundleURL which resolves to Clipy.app/ root —
-          # outside Contents/, which breaks codesign --deep.
-          # Patch to resourceURL so the bundle is found in Contents/Resources/ instead.
           ACCESSOR=".build/arm64-apple-macosx/release/KeyboardShortcuts.build/DerivedSources/resource_bundle_accessor.swift"
           if [ -f "$ACCESSOR" ]; then
-            python3 -c "
-import sys
-path = sys.argv[1]
-src = open(path).read()
-src = src.replace(
-    'Bundle.main.bundleURL.appendingPathComponent(',
-    '(Bundle.main.resourceURL ?? Bundle.main.bundleURL).appendingPathComponent('
-)
-open(path, 'w').write(src)
-print('Patched', path)
-" "$ACCESSOR"
+            sed -i '' 's/Bundle\.main\.bundleURL\.appendingPathComponent(/(Bundle.main.resourceURL ?? Bundle.main.bundleURL).appendingPathComponent(/g' "$ACCESSOR"
+            echo "Patched $ACCESSOR"
             cat "$ACCESSOR"
           else
-            echo "Accessor not found at $ACCESSOR — listing DerivedSources:"
+            echo "Accessor not found — searching:"
             find .build/arm64-apple-macosx/release -name "resource_bundle_accessor.swift" || true
           fi
 
-      - name: Build (second pass — recompiles patched accessor)
+      - name: Build (second pass - recompiles patched accessor)
         run: swift build -c release --arch arm64 -Xswiftc -suppress-warnings
 
       - name: Assemble .app bundle
