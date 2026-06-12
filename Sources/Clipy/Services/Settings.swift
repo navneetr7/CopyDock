@@ -3,7 +3,7 @@ import KeyboardShortcuts
 
 @Observable
 final class UserSettings {
-    static let shared = UserSettings()
+    @MainActor static let shared = UserSettings()
 
     var autoStart: Bool {
         didSet { UserDefaults.standard.set(autoStart, forKey: Keys.autoStart) }
