@@ -28,16 +28,11 @@ jobs:
           fi
           swift --version
 
-      - name: Build arm64
+      - name: Build
         run: swift build -c release --arch arm64 -Xswiftc -suppress-warnings
 
-      - name: Build x86_64
-        run: swift build -c release --arch x86_64 -Xswiftc -suppress-warnings
-
-      - name: Verify binaries
-        run: |
-          ls -lh .build/arm64-apple-macosx/release/Clipy
-          ls -lh .build/x86_64-apple-macosx/release/Clipy
+      - name: Verify binary
+        run: ls -lh .build/arm64-apple-macosx/release/Clipy
 
   package:
     name: Package DMG
@@ -60,19 +55,8 @@ jobs:
           fi
           swift --version
 
-      - name: Build arm64
+      - name: Build
         run: swift build -c release --arch arm64 -Xswiftc -suppress-warnings
-
-      - name: Build x86_64
-        run: swift build -c release --arch x86_64 -Xswiftc -suppress-warnings
-
-      - name: Create universal binary with lipo
-        run: |
-          lipo -create \
-            .build/arm64-apple-macosx/release/Clipy \
-            .build/x86_64-apple-macosx/release/Clipy \
-            -output .build/Clipy-universal
-          file .build/Clipy-universal
 
       - name: Assemble .app bundle
         run: |
@@ -80,7 +64,7 @@ jobs:
           APP_DIR="dist/Clipy.app"
           mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 
-          cp .build/Clipy-universal "$APP_DIR/Contents/MacOS/Clipy"
+          cp .build/arm64-apple-macosx/release/Clipy "$APP_DIR/Contents/MacOS/Clipy"
           chmod +x "$APP_DIR/Contents/MacOS/Clipy"
           cp Resources/Clipy.entitlements "$APP_DIR/Contents/Resources/"
 

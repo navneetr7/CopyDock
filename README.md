@@ -2,7 +2,7 @@
 
 A lightweight, native macOS clipboard manager that lives in a floating drawer at the edge of your screen. Built entirely in Swift and SwiftUI — no Electron, no web views, no background daemons.
 
-**Requires macOS 26 (Tahoe) or later · Apple Silicon + Intel (universal binary)**
+**Requires macOS 26 (Tahoe) or later · Apple Silicon only**
 
 ---
 
@@ -65,7 +65,7 @@ A lightweight, native macOS clipboard manager that lives in a floating drawer at
 ```bash
 git clone https://github.com/hewhocodes/clipy.git
 cd clipy
-swift build -c release --arch arm64 --arch x86_64
+swift build -c release --arch arm64
 ```
 
 To run in development:
@@ -81,11 +81,11 @@ The CI workflow (`.github/workflows/build.yml`) assembles a `.app` bundle and wr
 To do it locally:
 
 ```bash
-swift build -c release --arch arm64 --arch x86_64
+swift build -c release --arch arm64
 
 APP="dist/Clipy.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp .build/apple/Products/Release/Clipy "$APP/Contents/MacOS/Clipy"
+cp .build/arm64-apple-macosx/release/Clipy "$APP/Contents/MacOS/Clipy"
 cp Resources/Clipy.entitlements "$APP/Contents/Resources/"
 
 codesign --force --deep --sign - \
