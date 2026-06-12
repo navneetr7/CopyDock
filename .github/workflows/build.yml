@@ -88,9 +88,13 @@ jobs:
 
       - name: Create DMG
         run: |
+          mkdir -p dist/dmg_staging
+          cp -r dist/Clipy.app dist/dmg_staging/
+          ln -s /Applications dist/dmg_staging/Applications
+
           hdiutil create \
             -volname "Clipy" \
-            -srcfolder dist/Clipy.app \
+            -srcfolder dist/dmg_staging \
             -ov -format UDZO \
             "dist/Clipy-${{ github.ref_name }}.dmg"
 
