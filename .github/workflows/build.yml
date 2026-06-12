@@ -70,8 +70,8 @@ jobs:
           chmod +x "$APP_DIR/Contents/MacOS/Clipy"
           cp Resources/Info.plist "$APP_DIR/Contents/Info.plist"
 
-          # Copy SPM-generated resource bundles (e.g. KeyboardShortcuts_KeyboardShortcuts.bundle)
-          find .build/arm64-apple-macosx/release -maxdepth 1 -name "*.bundle" -exec cp -r {} "$APP_DIR/Contents/Resources/" \;
+          # SPM resource bundles must sit at Clipy.app/ root (Bundle.main.bundleURL lookup)
+          find .build/arm64-apple-macosx/release -maxdepth 1 -name "*.bundle" -exec cp -r {} "$APP_DIR/" \;
 
           ls -lhR "$APP_DIR"
 
