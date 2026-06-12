@@ -107,11 +107,18 @@ jobs:
           path: dist/Clipy-${{ github.ref_name }}.dmg
           retention-days: 30
 
+      - name: Delete existing release if present
+        run: gh release delete "${{ github.ref_name }}" --yes --cleanup-tag || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: Clipy ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
           files: dist/Clipy-${{ github.ref_name }}.dmg
           generate_release_notes: true
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
