@@ -32,7 +32,9 @@ jobs:
         run: swift build -c release --arch arm64 -Xswiftc -suppress-warnings
 
       - name: Verify binary
-        run: ls -lh .build/arm64-apple-macosx/release/Clipy
+        run: |
+          ls -lh .build/arm64-apple-macosx/release/Clipy
+          find .build/arm64-apple-macosx/release -maxdepth 1 -name "*.bundle" | sort
 
   package:
     name: Package DMG
@@ -57,7 +59,34 @@ jobs:
           fi
           swift --version
 
-      - name: Build
+      - name: Build (first pass — generates DerivedSources)
+        run: swift build -c release --arch arm64 -Xswiftc -suppress-warnings
+
+      - name: Patch Bundle.module to use resourceURL
+        run: |
+          # SPM generates Bundle.main.bundleURL which resolves to Clipy.app/ root —
+          # outside Contents/, which breaks codesign --deep.
+          # Patch to resourceURL so the bundle is found in Contents/Resources/ instead.
+          ACCESSOR=".build/arm64-apple-macosx/release/KeyboardShortcuts.build/DerivedSources/resource_bundle_accessor.swift"
+          if [ -f "$ACCESSOR" ]; then
+            python3 -c "
+import sys
+path = sys.argv[1]
+src = open(path).read()
+src = src.replace(
+    'Bundle.main.bundleURL.appendingPathComponent(',
+    '(Bundle.main.resourceURL ?? Bundle.main.bundleURL).appendingPathComponent('
+)
+open(path, 'w').write(src)
+print('Patched', path)
+" "$ACCESSOR"
+            cat "$ACCESSOR"
+          else
+            echo "Accessor not found at $ACCESSOR — listing DerivedSources:"
+            find .build/arm64-apple-macosx/release -name "resource_bundle_accessor.swift" || true
+          fi
+
+      - name: Build (second pass — recompiles patched accessor)
         run: swift build -c release --arch arm64 -Xswiftc -suppress-warnings
 
       - name: Assemble .app bundle
@@ -70,8 +99,8 @@ jobs:
           chmod +x "$APP_DIR/Contents/MacOS/Clipy"
           cp Resources/Info.plist "$APP_DIR/Contents/Info.plist"
 
-          # SPM resource bundles must sit at Clipy.app/ root (Bundle.main.bundleURL lookup)
-          find .build/arm64-apple-macosx/release -maxdepth 1 -name "*.bundle" -exec cp -r {} "$APP_DIR/" \;
+          # SPM resource bundles go in Contents/Resources/ (patched accessor uses resourceURL)
+          find .build/arm64-apple-macosx/release -maxdepth 1 -name "*.bundle" -exec cp -r {} "$APP_DIR/Contents/Resources/" \;
 
           ls -lhR "$APP_DIR"
 
