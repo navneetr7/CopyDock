@@ -1,11 +1,19 @@
 import SwiftUI
+import AppKit
 
 struct MinimizedDrawerStrip: View {
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: "doc.on.clipboard.fill")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.tint)
+            if let img = Bundle.main.image(forResource: "clipy_menubar") {
+                Image(nsImage: img)
+                    .interpolation(.high)
+                    .antialiased(true)
+                    .frame(width: 14, height: 14)
+            } else {
+                Image(systemName: "doc.on.clipboard.fill")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.tint)
+            }
             Text("Clipy")
                 .font(.caption.weight(.semibold))
         }

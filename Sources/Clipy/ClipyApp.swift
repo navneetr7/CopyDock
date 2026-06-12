@@ -93,7 +93,7 @@ struct ClipyApp: App {
     }
 
     var body: some Scene {
-        MenuBarExtra("Clipy", systemImage: "doc.on.clipboard.fill") {
+        MenuBarExtra {
             // ServiceStarter is a View, so it can hold @Environment(\.openWindow).
             // It handles both the startup kick and the openSettings notification —
             // things that can't be done directly from the App/Scene level.
@@ -113,6 +113,15 @@ struct ClipyApp: App {
 
             Button("Quit Clipy") {
                 NSApplication.shared.terminate(nil)
+            }
+        } label: {
+            if let img = Bundle.main.image(forResource: "clipy_menubar") {
+                Image(nsImage: img)
+                    .interpolation(.high)
+                    .antialiased(true)
+                    .frame(width: 18, height: 18)
+            } else {
+                Image(systemName: "doc.on.clipboard.fill")
             }
         }
 

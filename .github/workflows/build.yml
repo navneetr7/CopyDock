@@ -71,8 +71,11 @@ jobs:
           cp .build/arm64-apple-macosx/release/Clipy "$APP_DIR/Contents/MacOS/Clipy"
           chmod +x "$APP_DIR/Contents/MacOS/Clipy"
           cp Resources/Info.plist "$APP_DIR/Contents/Info.plist"
+          cp Resources/Clipy.icns "$APP_DIR/Contents/Resources/Clipy.icns"
+          cp Resources/clipy_menubar.png "$APP_DIR/Contents/Resources/clipy_menubar.png"
+          cp "Resources/clipy_menubar@2x.png" "$APP_DIR/Contents/Resources/clipy_menubar@2x.png"
 
-          # SPM resource bundles go in Contents/Resources/ (patched accessor uses resourceURL)
+          # SPM resource bundles go in Contents/Resources/
           find .build/arm64-apple-macosx/release -maxdepth 1 -name "*.bundle" -exec cp -r {} "$APP_DIR/Contents/Resources/" \;
 
           ls -lhR "$APP_DIR"
