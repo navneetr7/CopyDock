@@ -39,6 +39,8 @@ jobs:
     runs-on: macos-15
     needs: build
     if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
