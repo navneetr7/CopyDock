@@ -1,5 +1,4 @@
 import SwiftUI
-import KeyboardShortcuts
 import ServiceManagement
 
 struct SettingsView: View {
@@ -87,8 +86,8 @@ struct SettingsView: View {
             }
 
             Section("Keyboard Shortcut") {
-                KeyboardShortcuts.Recorder("Open Clipy drawer", name: UserSettings.shortcutName)
-                Text("Press the keys you want to use. The shortcut works from any app.")
+                ClipyShortcutRecorder(name: UserSettings.shortcutName)
+                Text("Click the badge to record a new shortcut. The shortcut works from any app.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
