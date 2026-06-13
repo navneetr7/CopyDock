@@ -20,6 +20,9 @@ let package = Package(
                 .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts")
             ],
             path: "Sources/Clipy",
+            resources: [
+                .process("Resources/clipy_pill.png")
+            ],
             linkerSettings: [
                 .unsafeFlags([
                     "-Xlinker", "-sectcreate", "-Xlinker", "__TEXT",

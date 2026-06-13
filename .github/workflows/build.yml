@@ -74,6 +74,7 @@ jobs:
           cp Resources/Clipy.icns "$APP_DIR/Contents/Resources/Clipy.icns"
           cp Resources/clipy_menubar.png "$APP_DIR/Contents/Resources/clipy_menubar.png"
           cp "Resources/clipy_menubar@2x.png" "$APP_DIR/Contents/Resources/clipy_menubar@2x.png"
+          cp Resources/clipy_pill.png "$APP_DIR/Contents/Resources/clipy_pill.png"
 
           # SPM resource bundles go in Contents/Resources/
           find .build/arm64-apple-macosx/release -maxdepth 1 -name "*.bundle" -exec cp -r {} "$APP_DIR/Contents/Resources/" \;
