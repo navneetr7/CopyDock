@@ -9,7 +9,7 @@ struct MinimizedDrawerStrip: View {
                     .resizable()
                     .interpolation(.high)
                     .antialiased(true)
-                    .aspectRatio(contentMode: .fill)
+                    .aspectRatio(contentMode: .fit)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 Image(systemName: "doc.on.clipboard.fill")
@@ -18,7 +18,6 @@ struct MinimizedDrawerStrip: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .help("Click to open · Press and hold, then drag to move")
     }
 }
