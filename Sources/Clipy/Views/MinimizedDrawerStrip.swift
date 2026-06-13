@@ -9,17 +9,14 @@ struct MinimizedDrawerStrip: View {
                     .resizable()
                     .interpolation(.high)
                     .antialiased(true)
-                    .aspectRatio(contentMode: .fit)
-                    .frame(height: 28)
+                    .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 Image(systemName: "doc.on.clipboard.fill")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.tint)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 4)
-        .background(.regularMaterial, in: Capsule())
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .help("Click to open · Press and hold, then drag to move")
     }
