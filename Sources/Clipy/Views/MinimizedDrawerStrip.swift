@@ -18,6 +18,7 @@ struct MinimizedDrawerStrip: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .help("Click to open · Press and hold, then drag to move")
     }
 }
