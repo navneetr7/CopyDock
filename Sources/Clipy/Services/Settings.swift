@@ -63,6 +63,16 @@ final class UserSettings {
         }
     }
 
+    var showFloatingPill: Bool {
+        didSet {
+            UserDefaults.standard.set(showFloatingPill, forKey: Keys.showFloatingPill)
+            if !showFloatingPill {
+                clearWidgetCustomPosition()
+            }
+            NotificationCenter.default.post(name: .clipyDrawerPositionChanged, object: nil)
+        }
+    }
+
     var widgetCustomOrigin: CGPoint? {
         didSet {
             let defaults = UserDefaults.standard
@@ -99,6 +109,7 @@ final class UserSettings {
         static let pinnedLimitUnlimited  = "clipy.pinnedLimitUnlimited"
         static let pinnedLimitCount      = "clipy.pinnedLimitCount"
         static let preferredPosition     = "clipy.preferredPosition"
+        static let showFloatingPill      = "clipy.showFloatingPill"
         static let widgetOriginX         = "clipy.widgetOriginX"
         static let widgetOriginY         = "clipy.widgetOriginY"
     }
@@ -152,6 +163,12 @@ final class UserSettings {
             self.preferredPosition = .bottom
         }
 
+        if UserDefaults.standard.object(forKey: Keys.showFloatingPill) != nil {
+            self.showFloatingPill = UserDefaults.standard.bool(forKey: Keys.showFloatingPill)
+        } else {
+            self.showFloatingPill = false
+        }
+
         let wx = UserDefaults.standard.object(forKey: Keys.widgetOriginX) as? Double
         let wy = UserDefaults.standard.object(forKey: Keys.widgetOriginY) as? Double
         self.widgetCustomOrigin = (wx != nil && wy != nil) ? CGPoint(x: wx!, y: wy!) : nil
@@ -169,6 +186,7 @@ final class UserSettings {
         pinnedLimitUnlimited = false
         pinnedLimitCount = Self.defaultPinnedLimitCount
         preferredPosition = .bottom
+        showFloatingPill = false
         clearWidgetCustomPosition()
         KeyboardShortcuts.setShortcut(.init(.v, modifiers: [.option, .shift]), for: Self.shortcutName)
     }

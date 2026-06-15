@@ -70,6 +70,8 @@ struct SettingsView: View {
             }
 
             Section("Drawer") {
+                Toggle("Show floating pill when inactive", isOn: $settings.showFloatingPill)
+
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Appear from")
                         .font(.subheadline)
@@ -79,8 +81,11 @@ struct SettingsView: View {
                         .padding(.vertical, 4)
                         .padding(.horizontal, 2)
                 }
+                .disabled(!settings.showFloatingPill)
 
-                Text("Collapses into a pill when inactive. Click to reopen or drag to move it.")
+                Text(settings.showFloatingPill
+                     ? "The drawer collapses into a draggable pill. The menu bar icon always stays available."
+                     : "The drawer hides when inactive. Left-click the menu bar icon to reopen it, or right-click for options.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

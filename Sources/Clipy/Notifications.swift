@@ -4,6 +4,7 @@ extension Notification.Name {
     static let clipboardItemsDidChange    = Notification.Name("clipy.itemsDidChange")
     static let clipyDrawerPositionChanged = Notification.Name("clipy.drawerPositionChanged")
     static let clipyLimitsDidChange       = Notification.Name("clipy.limitsDidChange")
+    static let openClipyDrawer            = Notification.Name("openClipyDrawer")
     static let openClipySettings          = Notification.Name("openClipySettings")
     static let closeClipyDrawer           = Notification.Name("clipy.closeDrawer")
     static let minimizeClipyDrawer        = Notification.Name("clipy.minimizeDrawer")

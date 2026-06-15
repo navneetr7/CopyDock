@@ -70,6 +70,13 @@ final class DrawerPresenter {
 
     func minimize() {
         guard let panel, panel.isVisible else { return }
+
+        guard settings.showFloatingPill else {
+            NotificationCenter.default.post(name: .clipyDrawerDidMinimize, object: nil)
+            hide()
+            return
+        }
+
         if displayMode == .minimized {
             NotificationCenter.default.post(name: .clipyDrawerDidMinimize, object: nil)
             return
@@ -124,6 +131,10 @@ final class DrawerPresenter {
 
     func repositionIfNeeded() {
         guard let panel, panel.isVisible else { return }
+        if displayMode == .minimized, !settings.showFloatingPill {
+            hide()
+            return
+        }
         switch displayMode {
         case .expanded:
             applyFrame(to: panel, mode: .expanded)

@@ -4,9 +4,13 @@ import AppKit
 import KeyboardShortcuts
 import Combine
 
+@MainActor
 final class ClipyAppDelegate: NSObject, NSApplicationDelegate {
+    private let statusItemController = StatusItemController()
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        statusItemController.install()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -29,6 +33,7 @@ struct ClipyApp: App {
     @State private var hotkeyManager: HotkeyManager
 
     @State private var repositionTask: Task<Void, Never>? = nil
+    private let settingsWindowController: SettingsWindowController
 
     init() {
         do {
@@ -80,11 +85,38 @@ struct ClipyApp: App {
             presenter.show()
         }
 
+        let settingsWindowController = SettingsWindowController(
+            modelContext: context,
+            historyStore: store
+        )
+
         _historyStore = State(initialValue: store)
         _pasteboardMonitor = State(initialValue: monitor)
         _writer = State(initialValue: writer)
         _drawerPresenter = State(initialValue: presenter)
         _hotkeyManager = State(initialValue: hotkey)
+        self.settingsWindowController = settingsWindowController
+
+        NotificationCenter.default.addObserver(
+            forName: .openClipyDrawer,
+            object: nil,
+            queue: .main
+        ) { [monitor, store, presenter] _ in
+            MainActor.assumeIsolated {
+                Self.startServices(monitor: monitor, store: store)
+                presenter.show()
+            }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: .openClipySettings,
+            object: nil,
+            queue: .main
+        ) { [settingsWindowController] _ in
+            MainActor.assumeIsolated {
+                settingsWindowController.show()
+            }
+        }
 
         Task { @MainActor [monitor] in
             NSApp.setActivationPolicy(.accessory)
@@ -93,63 +125,9 @@ struct ClipyApp: App {
     }
 
     var body: some Scene {
-        MenuBarExtra {
-            // ServiceStarter is a View, so it can hold @Environment(\.openWindow).
-            // It handles both the startup kick and the openSettings notification —
-            // things that can't be done directly from the App/Scene level.
-            ServiceStarter(onStart: startMonitoringIfNeeded)
-
-            Button("Open Clipy Drawer") {
-                startMonitoringIfNeeded()
-                drawerPresenter.show()
-            }
-
-            Divider()
-
-            Button("Settings...") {
-                // Post notification; ServiceStarter's onReceive calls openWindow(id: "settings")
-                NotificationCenter.default.post(name: .openClipySettings, object: nil)
-            }
-
-            Button("Quit Clipy") {
-                NSApplication.shared.terminate(nil)
-            }
-        } label: {
-            if let img = Bundle.main.image(forResource: "clipy_menubar") {
-                Image(nsImage: img)
-                    .interpolation(.high)
-                    .antialiased(true)
-                    .frame(width: 18, height: 18)
-            } else {
-                Image(systemName: "doc.on.clipboard.fill")
-            }
+        Settings {
+            EmptyView()
         }
-
-        Window("Clipy Settings", id: "settings") {
-            SettingsView(
-                onClearAll: { [historyStore] includePinned in
-                    try? await historyStore.clearAll(includePinned: includePinned)
-                },
-                onLimitsChanged: { [historyStore] in
-                    let settings = UserSettings.shared
-                    try? await historyStore.prune(
-                        maxCount: settings.effectiveHistoryLimit,
-                        maxAgeDays: settings.retentionDays
-                    )
-                }
-            )
-            .environment(\.modelContext, modelContainer.mainContext)
-            .onAppear {
-                DispatchQueue.main.async {
-                    if let window = NSApp.windows.first(where: { $0.title == "Clipy Settings" }) {
-                        window.standardWindowButton(.zoomButton)?.isEnabled = false
-                        window.styleMask.remove(.resizable)
-                    }
-                }
-            }
-        }
-        .windowResizability(.contentSize)
-        .defaultSize(width: 460, height: 560)
     }
 
 
@@ -180,27 +158,25 @@ struct ClipyApp: App {
             }
         }
     }
-}
 
+    @MainActor
+    private static func startServices(monitor: PasteboardMonitor, store: HistoryStore) {
+        let settings = UserSettings.shared
+        NSApp.setActivationPolicy(.accessory)
+        ClipyNotifier.configure()
+        Task { _ = await ClipyNotifier.requestPermissionIfNeeded() }
+        monitor.start()
 
-extension ClipyApp {
-    /// Invisible view inside the MenuBarExtra.
-    /// Starts services on first appear and handles the openSettings notification using
-    /// @Environment(\.openWindow), which is only available inside a SwiftUI View.
-    struct ServiceStarter: View {
-        let onStart: () -> Void
-        @Environment(\.openWindow) private var openWindow
+        let launchService = LaunchAtLoginService()
+        if settings.autoStart != launchService.isEnabled {
+            try? launchService.setEnabled(settings.autoStart)
+        }
 
-        var body: some View {
-            Color.clear
-                .frame(width: 0, height: 0)
-                .onAppear {
-                    onStart()
-                }
-                .onReceive(NotificationCenter.default.publisher(for: .openClipySettings)) { _ in
-                    openWindow(id: "settings")
-                    NSApp.activate(ignoringOtherApps: true)
-                }
+        Task { @MainActor in
+            try? await store.prune(
+                maxCount: settings.effectiveHistoryLimit,
+                maxAgeDays: settings.retentionDays
+            )
         }
     }
 }
