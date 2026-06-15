@@ -1,5 +1,8 @@
 # Clipy
 
+<img width="1774" height="887" alt="Lipy" src="https://github.com/user-attachments/assets/a4d0fd63-2327-48a2-a61d-27d247428ec8" />
+
+
 A lightweight, native macOS clipboard manager that lives in a floating drawer at the edge of your screen. Built entirely in Swift and SwiftUI — no Electron, no web views, no background daemons.
 
 **Requires macOS 26 (Tahoe) or later · Apple Silicon only**
