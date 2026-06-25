@@ -80,16 +80,16 @@ final class PasteboardMonitor {
     func pause() { isPaused = true }
     func resume() { isPaused = false; checkForChanges() }
 
+    func skipCurrentPasteboardChange() {
+        lastChangeCount = pasteboard.changeCount
+    }
+
     private func checkForChanges() {
         guard !isPaused else { return }
 
         let currentCount = pasteboard.changeCount
         guard currentCount != lastChangeCount else { return }
         lastChangeCount = currentCount
-
-        if pasteboard.pasteboardItems?.contains(where: { $0.types.contains(writerMarkerType) }) == true {
-            return
-        }
 
         guard let items = pasteboard.pasteboardItems, !items.isEmpty else { return }
 
@@ -103,6 +103,8 @@ final class PasteboardMonitor {
             let hasFileURL = item.types.contains(NSPasteboard.PasteboardType("public.file-url"))
 
             for type in item.types {
+                if type == writerMarkerType { continue }
+
                 let raw = type.rawValue
                 if raw.hasPrefix("dyn.") || raw.hasPrefix("com.microsoft.ole.source.") { continue }
 

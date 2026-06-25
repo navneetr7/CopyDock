@@ -66,10 +66,10 @@ struct ClipboardDrawerView: View {
     @FocusState private var searchFocused: Bool
 
     let onRestore:      (ClipboardItem) -> Bool
-    let onDelete:       (ClipboardItem) -> Void
-    let onTogglePin:    (ClipboardItem) async -> Void
-    let onClearAll:     (Bool) async -> Void
-    let loadItems:      () async -> [ClipboardItem]
+    let onDelete:       @MainActor (ClipboardItem) async -> Void
+    let onTogglePin:    @MainActor (ClipboardItem) async -> Void
+    let onClearAll:     @MainActor (Bool) async -> Void
+    let loadItems:      @MainActor () async -> [ClipboardItem]
     let settings:       UserSettings
 
     var body: some View {
@@ -380,8 +380,10 @@ struct ClipboardDrawerView: View {
             onTogglePin: { Task { await onTogglePin(item); await refreshItems() } },
             onRemove: {
                 if hoveredCardID == item.id { hoveredCardID = nil }
-                onDelete(item)
-                Task { await refreshItems() }
+                Task {
+                    await onDelete(item)
+                    await refreshItems()
+                }
             }
         )
         .frame(width: layout.width, height: layout.height)
@@ -492,4 +494,3 @@ private struct SleekHorizontalScrollView<Content: View>: View {
         }
     }
 }
-

@@ -54,22 +54,34 @@ struct ClipyApp: App {
             historyStore: store
         )
 
-        let drawerContentFactory: () -> AnyView = { [store, writer] in
+        let drawerContentFactory: () -> AnyView = { [store, writer, monitor] in
             AnyView(
                 DrawerRootView(
                     onRestore: { item in
-                        writer.write(item: item)
+                        let success = writer.write(item: item)
+                        monitor.skipCurrentPasteboardChange()
+                        return success
                     },
                     onDelete: { item in
-                        Task { @MainActor in
-                            try? await store.delete(item)
+                        do {
+                            try await store.delete(item)
+                        } catch {
+                            print("HistoryStore delete failed: \(error)")
                         }
                     },
                     onTogglePin: { item in
-                        try? await store.togglePin(item)
+                        do {
+                            try await store.togglePin(item)
+                        } catch {
+                            print("HistoryStore toggle pin failed: \(error)")
+                        }
                     },
                     onClearAll: { includePinned in
-                        try? await store.clearAll(includePinned: includePinned)
+                        do {
+                            try await store.clearAll(includePinned: includePinned)
+                        } catch {
+                            print("HistoryStore clear all failed: \(error)")
+                        }
                     },
                     loadItems: {
                         (try? await store.fetchAll()) ?? []

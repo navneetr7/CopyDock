@@ -42,6 +42,7 @@ final class HistoryStore: HistoryStoring {
         for path in blobPaths { try? store.delete(relativePath: path) }
         modelContext.delete(item)
         try modelContext.save()
+        NotificationCenter.default.post(name: .clipboardItemsDidChange, object: nil)
     }
 
     func clearAll(includePinned: Bool) async throws {
@@ -56,6 +57,7 @@ final class HistoryStore: HistoryStoring {
             modelContext.delete(item)
         }
         try modelContext.save()
+        NotificationCenter.default.post(name: .clipboardItemsDidChange, object: nil)
     }
 
     func togglePin(_ item: ClipboardItem) async throws {
@@ -70,6 +72,7 @@ final class HistoryStore: HistoryStoring {
             item.isPinned = true
         }
         try modelContext.save()
+        NotificationCenter.default.post(name: .clipboardItemsDidChange, object: nil)
     }
 
     func prune(maxCount: Int, maxAgeDays: Int) async throws {
@@ -77,6 +80,7 @@ final class HistoryStore: HistoryStoring {
         var unpinned = all.filter { !$0.isPinned }
 
         let store = BlobStore()
+        var didDelete = false
 
         if maxAgeDays > 0 {
             let cutoff = Calendar.current.date(byAdding: .day, value: -maxAgeDays, to: .now) ?? .distantPast
@@ -85,6 +89,7 @@ final class HistoryStore: HistoryStoring {
                 item.contents.compactMap { $0.type == "clipy.blob" ? $0.stringValue : nil }
                     .forEach { try? store.delete(relativePath: $0) }
                 modelContext.delete(item)
+                didDelete = true
             }
             unpinned.removeAll { $0.timestamp < cutoff }
         }
@@ -95,9 +100,12 @@ final class HistoryStore: HistoryStoring {
                 item.contents.compactMap { $0.type == "clipy.blob" ? $0.stringValue : nil }
                     .forEach { try? store.delete(relativePath: $0) }
                 modelContext.delete(item)
+                didDelete = true
             }
         }
 
+        guard didDelete else { return }
         try modelContext.save()
+        NotificationCenter.default.post(name: .clipboardItemsDidChange, object: nil)
     }
 }

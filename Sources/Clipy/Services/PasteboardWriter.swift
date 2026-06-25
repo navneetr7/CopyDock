@@ -43,7 +43,6 @@ final class PasteboardWriter: PasteboardWriting {
             }
         }
 
-        pasteboard.setString("Clipy", forType: NSPasteboard.PasteboardType("org.nspasteboard.Clipy"))
         return success
     }
 }
