@@ -5,10 +5,10 @@ struct DrawerRootView: View {
     @State private var isMinimized = false
 
     let onRestore:   (ClipboardItem) -> Bool
-    let onDelete:    (ClipboardItem) -> Void
-    let onTogglePin: (ClipboardItem) async -> Void
-    let onClearAll:  (Bool) async -> Void
-    let loadItems:   () async -> [ClipboardItem]
+    let onDelete:    @MainActor (ClipboardItem) async -> Void
+    let onTogglePin: @MainActor (ClipboardItem) async -> Void
+    let onClearAll:  @MainActor (Bool) async -> Void
+    let loadItems:   @MainActor () async -> [ClipboardItem]
     let settings:    UserSettings
 
     var body: some View {
