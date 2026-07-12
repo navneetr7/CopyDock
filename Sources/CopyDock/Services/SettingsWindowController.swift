@@ -42,7 +42,7 @@ final class SettingsWindowController {
             backing: .buffered,
             defer: false
         )
-        window.title = "Clipy Settings"
+        window.title = "CopyDock Settings"
         window.contentView = NSHostingView(rootView: root)
         window.isReleasedWhenClosed = false
         window.standardWindowButton(.zoomButton)?.isEnabled = false

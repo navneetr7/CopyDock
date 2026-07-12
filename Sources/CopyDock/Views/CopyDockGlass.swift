@@ -2,9 +2,9 @@ import AppKit
 import SwiftUI
 
 
-let clipyClearAllRed = Color(red: 0.86, green: 0.18, blue: 0.16)
+let copydockClearAllRed = Color(red: 0.86, green: 0.18, blue: 0.16)
 
-struct ClipyVisualEffectBlur: NSViewRepresentable {
+struct CopyDockVisualEffectBlur: NSViewRepresentable {
     var material: NSVisualEffectView.Material = .hudWindow
     var blendingMode: NSVisualEffectView.BlendingMode = .withinWindow
     var cornerRadius: CGFloat = 0
@@ -31,7 +31,7 @@ struct ClipyVisualEffectBlur: NSViewRepresentable {
     }
 }
 
-struct ClipyFrostedBackdrop: View {
+struct CopyDockFrostedBackdrop: View {
     var cornerRadius: CGFloat = 0
 
     private var shape: RoundedRectangle {
@@ -40,7 +40,7 @@ struct ClipyFrostedBackdrop: View {
 
     var body: some View {
         ZStack {
-            ClipyVisualEffectBlur(
+            CopyDockVisualEffectBlur(
                 material: .hudWindow,
                 blendingMode: .withinWindow,
                 cornerRadius: cornerRadius
@@ -51,7 +51,7 @@ struct ClipyFrostedBackdrop: View {
     }
 }
 
-struct ClipyFrostedDialogSurface: View {
+struct CopyDockFrostedDialogSurface: View {
     var cornerRadius: CGFloat = 16
 
     private var shape: RoundedRectangle {
@@ -60,7 +60,7 @@ struct ClipyFrostedDialogSurface: View {
 
     var body: some View {
         ZStack {
-            ClipyVisualEffectBlur(
+            CopyDockVisualEffectBlur(
                 material: .popover,
                 blendingMode: .withinWindow,
                 cornerRadius: cornerRadius
@@ -80,7 +80,7 @@ struct ClipyFrostedDialogSurface: View {
     }
 }
 
-struct ClipyClearAllPillLabel: View {
+struct CopyDockClearAllPillLabel: View {
     let title: String
 
     var body: some View {
@@ -89,11 +89,11 @@ struct ClipyClearAllPillLabel: View {
             .foregroundStyle(.white)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .background(Capsule().fill(clipyClearAllRed))
+            .background(Capsule().fill(copydockClearAllRed))
     }
 }
 
-struct ClipyFrostedConfirmationOverlay: View {
+struct CopyDockFrostedConfirmationOverlay: View {
     let title: String
     let message: String
     let confirmTitle: String
@@ -106,7 +106,7 @@ struct ClipyFrostedConfirmationOverlay: View {
 
     var body: some View {
         ZStack {
-            ClipyFrostedBackdrop(cornerRadius: backdropCornerRadius)
+            CopyDockFrostedBackdrop(cornerRadius: backdropCornerRadius)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(RoundedRectangle(cornerRadius: backdropCornerRadius, style: .continuous))
                 .onTapGesture { onCancel() }
@@ -142,7 +142,7 @@ struct ClipyFrostedConfirmationOverlay: View {
                     .buttonStyle(.plain)
 
                     Button(action: onConfirm) {
-                        ClipyClearAllPillLabel(title: confirmTitle)
+                        CopyDockClearAllPillLabel(title: confirmTitle)
                     }
                     .buttonStyle(.plain)
                 }
@@ -150,7 +150,7 @@ struct ClipyFrostedConfirmationOverlay: View {
             .padding(20)
             .frame(maxWidth: maxWidth)
             .background {
-                ClipyFrostedDialogSurface(cornerRadius: 16)
+                CopyDockFrostedDialogSurface(cornerRadius: 16)
             }
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
@@ -158,7 +158,7 @@ struct ClipyFrostedConfirmationOverlay: View {
 }
 
 
-enum ClipyGlass {
+enum CopyDockGlass {
     static let categoryAnimation: Animation = {
         if #available(macOS 26.0, *) {
             return .bouncy(duration: 0.42)
@@ -176,7 +176,7 @@ enum ClipyGlass {
 
 extension View {
     @ViewBuilder
-    func clipyCardBackground(cornerRadius: CGFloat = 10) -> some View {
+    func copydockCardBackground(cornerRadius: CGFloat = 10) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         if #available(macOS 26.0, *) {
             self.background {
@@ -190,7 +190,7 @@ extension View {
     }
 
     @ViewBuilder
-    func clipyGridTransition<ID: Hashable>(id: ID) -> some View {
+    func copydockGridTransition<ID: Hashable>(id: ID) -> some View {
         if #available(macOS 26.0, *) {
             self
                 .id(id)
@@ -227,7 +227,7 @@ struct DrawerPositionGlassPicker: View {
         let isSelected = selection == position
 
         return Button {
-            withAnimation(ClipyGlass.categoryAnimation) {
+            withAnimation(CopyDockGlass.categoryAnimation) {
                 selection = position
             }
         } label: {
@@ -257,7 +257,7 @@ struct DrawerPositionGlassPicker: View {
 
     private var selectedPillBackground: some View {
         ZStack {
-            ClipyVisualEffectBlur(
+            CopyDockVisualEffectBlur(
                 material: .popover,
                 blendingMode: .withinWindow,
                 cornerRadius: pillHeight / 2
@@ -328,7 +328,7 @@ struct CategoryGlassPicker: View {
         let isSelected = selectedCategory == category
 
         Button {
-            withAnimation(ClipyGlass.categoryAnimation) {
+            withAnimation(CopyDockGlass.categoryAnimation) {
                 selectedCategory = isSelected ? nil : category
             }
         } label: {

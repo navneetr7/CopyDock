@@ -4,7 +4,7 @@ import SwiftUI
 struct DrawerRootView: View {
     @State private var isMinimized = false
 
-    let onRestore:   (ClipboardItem) -> Bool
+    let onRestore:   (ClipboardItem, _ plainText: Bool) -> Bool
     let onDelete:    @MainActor (ClipboardItem) async -> Void
     let onTogglePin: @MainActor (ClipboardItem) async -> Void
     let onClearAll:  @MainActor (Bool) async -> Void
@@ -26,13 +26,13 @@ struct DrawerRootView: View {
                 )
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .clipyDrawerDidMinimize)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .copydockDrawerDidMinimize)) { _ in
             isMinimized = true
         }
-        .onReceive(NotificationCenter.default.publisher(for: .clipyDrawerDidExpand)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .copydockDrawerDidExpand)) { _ in
             isMinimized = false
         }
-        .onReceive(NotificationCenter.default.publisher(for: .clipyDrawerWillShow)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .copydockDrawerWillShow)) { _ in
             isMinimized = false
         }
     }

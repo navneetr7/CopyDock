@@ -1,5 +1,7 @@
 import SwiftUI
+import AppKit
 import ServiceManagement
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @State private var settings = UserSettings.shared
@@ -36,6 +38,19 @@ struct SettingsView: View {
                     }
                 }
 
+                Toggle("Paste directly into the active app", isOn: Binding(
+                    get: { settings.pasteDirectly },
+                    set: { newValue in
+                        settings.pasteDirectly = newValue
+                        if newValue && !Paster.isTrusted {
+                            Paster.requestAccess()
+                        }
+                    }
+                ))
+                Text("Requires Accessibility permission. Without it, items are only copied and you paste with ⌘V yourself.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
                 Stepper(value: $settings.retentionDays, in: 1...365) {
                     Text("Keep Clipboard History for \(settings.retentionDays) Days")
                         .monospacedDigit()
@@ -43,6 +58,41 @@ struct SettingsView: View {
                 Text("Older items are automatically removed to keep your clipboard tidy.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+
+            Section("Privacy") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Excluded apps")
+                        .font(.body)
+                    Text("Items copied from these apps are never saved to history.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    ForEach(settings.excludedAppIDs, id: \.self) { bundleID in
+                        HStack(spacing: 8) {
+                            if let icon = AppIconCache.shared.icon(for: bundleID) {
+                                Image(nsImage: icon)
+                                    .resizable()
+                                    .frame(width: 20, height: 20)
+                            }
+                            Text(AppIconCache.shared.name(for: bundleID) ?? bundleID)
+                                .lineLimit(1)
+                            Spacer()
+                            Button {
+                                settings.excludedAppIDs.removeAll { $0 == bundleID }
+                            } label: {
+                                Image(systemName: "minus.circle.fill")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Remove from list")
+                        }
+                        .padding(.vertical, 2)
+                    }
+
+                    Button("Add App…") { addExcludedApp() }
+                }
+                .padding(.vertical, 2)
             }
 
             Section("History Limits") {
@@ -91,7 +141,7 @@ struct SettingsView: View {
             }
 
             Section("Keyboard Shortcut") {
-                ClipyShortcutRecorder(name: UserSettings.shortcutName)
+                CopyDockShortcutRecorder(name: UserSettings.shortcutName)
                 Text("Click the badge to record a new shortcut. The shortcut works from any app.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -106,7 +156,7 @@ struct SettingsView: View {
         )
         .contentMargins(.trailing, 2, for: .scrollIndicators)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .navigationTitle("Clipy Settings")
+        .navigationTitle("CopyDock Settings")
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: 12) {
                 Button {
@@ -138,7 +188,7 @@ struct SettingsView: View {
         }
         .overlay {
             if isClearing {
-                ClipyFrostedConfirmationOverlay(
+                CopyDockFrostedConfirmationOverlay(
                     title: "Clear clipboard history?",
                     message: "This permanently deletes all saved clipboard items.",
                     confirmTitle: "Clear History",
@@ -157,7 +207,7 @@ struct SettingsView: View {
                 )
                 .transition(.opacity.combined(with: .scale(0.97)))
             } else if isResetting {
-                ClipyFrostedConfirmationOverlay(
+                CopyDockFrostedConfirmationOverlay(
                     title: "Reset to defaults?",
                     message: "All settings will be restored to their original values.",
                     confirmTitle: "Reset",
@@ -184,6 +234,21 @@ struct SettingsView: View {
         }
         .onChange(of: settings.pinnedLimitCount) { _, _ in
             Task { await onLimitsChanged() }
+        }
+    }
+
+    private func addExcludedApp() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.application]
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.allowsMultipleSelection = true
+        panel.message = "Choose apps whose copies CopyDock should ignore"
+        guard panel.runModal() == .OK else { return }
+        for url in panel.urls {
+            if let bundleID = Bundle(url: url)?.bundleIdentifier,
+               !settings.excludedAppIDs.contains(bundleID) {
+                settings.excludedAppIDs.append(bundleID)
+            }
         }
     }
 }

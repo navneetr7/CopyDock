@@ -33,7 +33,7 @@ jobs:
 
       - name: Verify binary
         run: |
-          ls -lh .build/arm64-apple-macosx/release/Clipy
+          ls -lh .build/arm64-apple-macosx/release/CopyDock
           find .build/arm64-apple-macosx/release -maxdepth 1 -name "*.bundle" | sort
 
   package:
@@ -65,16 +65,16 @@ jobs:
       - name: Assemble .app bundle
         run: |
           set -e
-          APP_DIR="dist/Clipy.app"
+          APP_DIR="dist/CopyDock.app"
           mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 
-          cp .build/arm64-apple-macosx/release/Clipy "$APP_DIR/Contents/MacOS/Clipy"
-          chmod +x "$APP_DIR/Contents/MacOS/Clipy"
+          cp .build/arm64-apple-macosx/release/CopyDock "$APP_DIR/Contents/MacOS/CopyDock"
+          chmod +x "$APP_DIR/Contents/MacOS/CopyDock"
           cp Resources/Info.plist "$APP_DIR/Contents/Info.plist"
-          cp Resources/Clipy.icns "$APP_DIR/Contents/Resources/Clipy.icns"
-          cp Resources/clipy_menubar.png "$APP_DIR/Contents/Resources/clipy_menubar.png"
-          cp "Resources/clipy_menubar@2x.png" "$APP_DIR/Contents/Resources/clipy_menubar@2x.png"
-          cp Resources/clipy_pill.png "$APP_DIR/Contents/Resources/clipy_pill.png"
+          cp Resources/CopyDock.icns "$APP_DIR/Contents/Resources/CopyDock.icns"
+          cp Resources/copydock_menubar.png "$APP_DIR/Contents/Resources/copydock_menubar.png"
+          cp "Resources/copydock_menubar@2x.png" "$APP_DIR/Contents/Resources/copydock_menubar@2x.png"
+          cp Resources/copydock_pill.png "$APP_DIR/Contents/Resources/copydock_pill.png"
 
           # SPM resource bundles go in Contents/Resources/
           find .build/arm64-apple-macosx/release -maxdepth 1 -name "*.bundle" -exec cp -r {} "$APP_DIR/Contents/Resources/" \;
@@ -85,32 +85,32 @@ jobs:
         run: |
           codesign \
             --force --deep --sign - \
-            --entitlements Resources/Clipy.entitlements \
+            --entitlements Resources/CopyDock.entitlements \
             --options runtime \
-            dist/Clipy.app
+            dist/CopyDock.app
 
-          codesign --verify --deep --strict dist/Clipy.app
+          codesign --verify --deep --strict dist/CopyDock.app
           echo "Signing OK"
 
       - name: Create DMG
         run: |
           mkdir -p dist/dmg_staging
-          cp -r dist/Clipy.app dist/dmg_staging/
+          cp -r dist/CopyDock.app dist/dmg_staging/
           ln -s /Applications dist/dmg_staging/Applications
 
           hdiutil create \
-            -volname "Clipy" \
+            -volname "CopyDock" \
             -srcfolder dist/dmg_staging \
             -ov -format UDZO \
-            "dist/Clipy-${{ github.ref_name }}.dmg"
+            "dist/CopyDock-${{ github.ref_name }}.dmg"
 
-          ls -lh "dist/Clipy-${{ github.ref_name }}.dmg"
+          ls -lh "dist/CopyDock-${{ github.ref_name }}.dmg"
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Clipy-${{ github.ref_name }}
-          path: dist/Clipy-${{ github.ref_name }}.dmg
+          name: CopyDock-${{ github.ref_name }}
+          path: dist/CopyDock-${{ github.ref_name }}.dmg
           retention-days: 30
 
       - name: Delete existing release if present
@@ -121,9 +121,9 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: Clipy ${{ github.ref_name }}
+          name: CopyDock ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
-          files: dist/Clipy-${{ github.ref_name }}.dmg
+          files: dist/CopyDock-${{ github.ref_name }}.dmg
           generate_release_notes: true
           make_latest: true
         env:

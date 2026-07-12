@@ -1,4 +1,5 @@
 import AppKit
+import CryptoKit
 import Foundation
 
 @MainActor
@@ -7,7 +8,7 @@ final class PasteboardMonitor {
     private let categorizer: Categorizing
     private let blobStore: BlobStoring
     private let historyStore: HistoryStoring
-    private let writerMarkerType = NSPasteboard.PasteboardType("org.nspasteboard.Clipy")
+    private let writerMarkerType = NSPasteboard.PasteboardType("org.nspasteboard.CopyDock")
 
     private let pasteboard = NSPasteboard.general
     private var lastChangeCount: Int
@@ -15,7 +16,7 @@ final class PasteboardMonitor {
     private var isPaused = false
     private var keepAliveActivity: NSObjectProtocol?
     private var workspaceObservers: [NSObjectProtocol] = []
-    private var lastSeenHash: Int?
+    private var lastSeenHash: String?
 
     var onNewItem: ((ClipboardItem) -> Void)?
 
@@ -34,7 +35,7 @@ final class PasteboardMonitor {
         stop()
 
         keepAliveActivity = ProcessInfo.processInfo.beginActivity(
-            options: [.userInitiated, .idleSystemSleepDisabled],
+            options: [.userInitiated],
             reason: "Monitoring clipboard history"
         )
 
@@ -91,6 +92,9 @@ final class PasteboardMonitor {
         guard currentCount != lastChangeCount else { return }
         lastChangeCount = currentCount
 
+        let sourceApp = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        if let sourceApp, UserSettings.shared.excludedAppIDs.contains(sourceApp) { return }
+
         guard let items = pasteboard.pasteboardItems, !items.isEmpty else { return }
 
         var allContents: [HistoryItemContent] = []
@@ -122,41 +126,40 @@ final class PasteboardMonitor {
 
         guard !allContents.isEmpty else { return }
 
-        var hasher = Hasher()
+        // Stable across launches so duplicates can be detected against stored history.
+        var hashInput = Data()
         if let primaryText = allContents.first(where: {
             $0.type == "public.utf8-plain-text" || $0.type == "NSStringPboardType"
         })?.value {
-            hasher.combine(primaryText)
+            hashInput = primaryText
         } else if let anyText = allContents.first(where: { $0.isString })?.value {
-            hasher.combine(anyText)
+            hashInput = anyText
         } else if let urlVal = allContents.first(where: { $0.isURL })?.value {
-            hasher.combine(urlVal)
+            hashInput = urlVal
         } else if let biggest = allContents.compactMap({ c -> (String, Data)? in
             guard let d = c.value, d.count > 0 else { return nil }
             return (c.type, d)
         }).max(by: { $0.1.count < $1.1.count }) {
-            hasher.combine(biggest.0)
-            hasher.combine(biggest.1.prefix(4096))
+            hashInput = Data(biggest.0.utf8) + biggest.1.prefix(4096)
         }
-        let signature = hasher.finalize()
+        let signature = SHA256.hash(data: hashInput).map { String(format: "%02x", $0) }.joined()
         if signature == lastSeenHash { return }
         lastSeenHash = signature
 
         let category = categorizer.categorizeFromContents(allContents)
-        let sourceApp = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
 
         let isFileURLItem = allContents.contains { $0.isFileURL }
         var finalContents = allContents
 
         if !isFileURLItem {
-            if category == .other {
+            if category == .image {
                 if let thumbData = makeThumbnailPNG(from: allContents, maxDim: 512) {
-                    finalContents.append(HistoryItemContent(type: "clipy.thumbnail", value: thumbData))
+                    finalContents.append(HistoryItemContent(type: "copydock.thumbnail", value: thumbData))
                 }
             }
 
             let largeItems = finalContents.filter {
-                $0.type != "clipy.thumbnail" && ($0.value?.count ?? 0) > 100_000
+                $0.type != "copydock.thumbnail" && ($0.value?.count ?? 0) > 100_000
             }
             for large in largeItems {
                 guard let data = large.value else { continue }
@@ -168,7 +171,7 @@ final class PasteboardMonitor {
                 else                                 { ext = "bin"  }
                 if let rel = try? blobStore.save(data: data, preferredExtension: ext) {
                     finalContents.removeAll { $0.id == large.id }
-                    finalContents.append(HistoryItemContent(type: "clipy.blob", value: rel.data(using: .utf8)))
+                    finalContents.append(HistoryItemContent(type: "copydock.blob", value: rel.data(using: .utf8)))
                 } else {
                     finalContents.removeAll { $0.id == large.id }
                 }
@@ -176,10 +179,16 @@ final class PasteboardMonitor {
         }
 
         let preview = makePreview(from: allContents, category: category)
-        let newItem = ClipboardItem(category: category, contents: finalContents, sourceApp: sourceApp, preview: preview)
+        let newItem = ClipboardItem(category: category, contents: finalContents, sourceApp: sourceApp, preview: preview, contentHash: signature)
 
         Task {
             do {
+                // Copying something already in history moves the existing item to the top.
+                if try await historyStore.bumpDuplicate(contentHash: signature) {
+                    NotificationCenter.default.post(name: .clipboardItemsDidChange, object: nil)
+                    return
+                }
+
                 try await historyStore.insert(newItem)
                 onNewItem?(newItem)
                 NotificationCenter.default.post(name: .clipboardItemsDidChange, object: nil)
@@ -188,7 +197,8 @@ final class PasteboardMonitor {
                    let urlStr = finalContents.first(where: { $0.isFileURL })?.stringValue,
                    let fileURL = ImagePreviewLoader.fileURL(from: urlStr) {
                     if let thumbData = await ThumbnailGenerator.generate(for: fileURL, maxDim: 512) {
-                        newItem.contents.append(HistoryItemContent(type: "clipy.thumbnail", value: thumbData))
+                        newItem.contents.append(HistoryItemContent(type: "copydock.thumbnail", value: thumbData))
+                        try await historyStore.saveChanges()
                         NotificationCenter.default.post(name: .clipboardItemsDidChange, object: nil)
                     }
                 }
@@ -266,7 +276,7 @@ final class PasteboardMonitor {
         if let urlStr = contents.first(where: { $0.isURL })?.stringValue { return urlStr }
         switch category {
         case .doc: return "Document"
-        case .other: return "Image or media"
+        case .image: return "Image or media"
         default: return "Clipboard content"
         }
     }

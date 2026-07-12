@@ -1,12 +1,12 @@
 import AppKit
 import SwiftUI
 
-final class ClipyPanel: NSPanel {
+final class CopyDockPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 }
 
-final class ClipyHostingView: NSHostingView<AnyView> {
+final class CopyDockHostingView: NSHostingView<AnyView> {
     override func makeBackingLayer() -> CALayer {
         let layer = super.makeBackingLayer()
         layer.backgroundColor = CGColor(gray: 0, alpha: 0)
@@ -17,11 +17,11 @@ final class ClipyHostingView: NSHostingView<AnyView> {
     override var isOpaque: Bool { false }
 }
 
-final class ClipyContentContainer: NSView {
-    let hostingView: ClipyHostingView
+final class CopyDockContentContainer: NSView {
+    let hostingView: CopyDockHostingView
     let widgetOverlay: WidgetOverlayView
 
-    init(hostingView: ClipyHostingView, widgetOverlay: WidgetOverlayView) {
+    init(hostingView: CopyDockHostingView, widgetOverlay: WidgetOverlayView) {
         self.hostingView = hostingView
         self.widgetOverlay = widgetOverlay
         super.init(frame: .zero)

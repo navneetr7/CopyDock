@@ -2,26 +2,26 @@
 import PackageDescription
 
 let package = Package(
-    name: "Clipy",
+    name: "CopyDock",
     platforms: [
         .macOS(.v26)
     ],
     products: [
         // Declaring the executable product causes Xcode to generate a run scheme.
-        .executable(name: "Clipy", targets: ["Clipy"])
+        .executable(name: "CopyDock", targets: ["CopyDock"])
     ],
     dependencies: [
         .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", from: "2.0.0")
     ],
     targets: [
         .executableTarget(
-            name: "Clipy",
+            name: "CopyDock",
             dependencies: [
                 .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts")
             ],
-            path: "Sources/Clipy",
+            path: "Sources/CopyDock",
             resources: [
-                .process("Resources/clipy_pill.png")
+                .process("Resources/copydock_pill.png")
             ],
             linkerSettings: [
                 .unsafeFlags([

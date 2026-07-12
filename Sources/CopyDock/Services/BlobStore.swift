@@ -15,7 +15,7 @@ final class BlobStore: BlobStoring {
 
     init() {
         let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        baseDirectory = appSupport.appendingPathComponent("Clipy/Blobs", isDirectory: true)
+        baseDirectory = appSupport.appendingPathComponent("CopyDock/Blobs", isDirectory: true)
         try? fileManager.createDirectory(at: baseDirectory, withIntermediateDirectories: true)
     }
 

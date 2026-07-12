@@ -2,7 +2,7 @@ import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
 
-struct ClipyImageView: View {
+struct CopyDockImageView: View {
     let item: ClipboardItem
     @State private var image: NSImage?
 
@@ -38,7 +38,7 @@ struct ClipyImageView: View {
 
         if let img = ImagePreviewLoader.loadImage(from: item) { return img }
 
-        if let data = item.contents.first(where: { $0.type == "clipy.thumbnail" })?.value {
+        if let data = item.contents.first(where: { $0.type == "copydock.thumbnail" })?.value {
             return ImagePreviewLoader.imageFromData(data)
         }
         return nil
@@ -57,7 +57,7 @@ struct DocIconView: View {
             let ext = url.pathExtension
             if !ext.isEmpty { return ext }
         }
-        if let blobPath = item.contents.first(where: { $0.type == "clipy.blob" })?.stringValue {
+        if let blobPath = item.contents.first(where: { $0.type == "copydock.blob" })?.stringValue {
             let ext = (blobPath as NSString).pathExtension
             if !ext.isEmpty { return ext }
         }
@@ -89,6 +89,7 @@ struct RecentItemCard: View {
     var flipAngle: Double = 0
     var isHovered: Bool = false
     let onTap: () -> Void
+    var onPastePlain: () -> Void = {}
     var onTogglePin: () -> Void = {}
     var onRemove: () -> Void = {}
 
@@ -100,7 +101,7 @@ struct RecentItemCard: View {
     private let cardBackgroundBrighten: CGFloat = 0.04
     private let headerHeight: CGFloat = 29
 
-    private var isImage: Bool { item.category == .other }
+    private var isImage: Bool { item.category == .image }
     private var isDoc:   Bool { item.category == .doc   }
 
     private var iconSize: CGFloat { min(cardWidth, cardHeight) * 0.38 }
@@ -143,7 +144,7 @@ struct RecentItemCard: View {
     var body: some View {
         cardBody
             .overlay {
-                ClipyCardDragLayer(item: item, onTap: onTap, onTogglePin: onTogglePin, onRemove: onRemove)
+                CopyDockCardDragLayer(item: item, onTap: onTap, onPastePlain: onPastePlain, onTogglePin: onTogglePin, onRemove: onRemove)
             }
             .overlay(alignment: .topTrailing) {
                 if item.isPinned {
@@ -227,7 +228,7 @@ struct RecentItemCard: View {
     private var cardContent: some View {
         Group {
             if isImage {
-                ClipyImageView(item: item)
+                CopyDockImageView(item: item)
             } else if isDoc {
                 docBody
             } else {
@@ -279,17 +280,15 @@ struct RecentItemCard: View {
 }
 
 struct MacTrafficLights: View {
-    enum Kind { case close, minimize, zoom }
+    enum Kind { case close, minimize }
 
     let onClose: () -> Void
     let onMinimize: () -> Void
-    let onZoom: () -> Void
 
     var body: some View {
         HStack(spacing: 8) {
             trafficLight(.close,    color: Color(red: 1.0, green: 0.37, blue: 0.34), action: onClose)
             trafficLight(.minimize, color: Color(red: 1.0, green: 0.74, blue: 0.18), action: onMinimize)
-            trafficLight(.zoom,     color: Color(red: 0.16, green: 0.78, blue: 0.25), action: onZoom)
         }
         .padding(.leading, 6)
     }
@@ -317,7 +316,6 @@ struct MacTrafficLights: View {
         switch kind {
         case .close:    return "xmark"
         case .minimize: return "minus"
-        case .zoom:     return "plus"
         }
     }
 
@@ -325,7 +323,6 @@ struct MacTrafficLights: View {
         switch kind {
         case .close:    return "Close"
         case .minimize: return "Minimize"
-        case .zoom:     return "Settings"
         }
     }
 }

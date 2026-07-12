@@ -8,7 +8,7 @@ private let categoryIconSpacing:   CGFloat = 10
 private let brandToCategoryPad:    CGFloat = 14
 private let drawerEdgeInset:       CGFloat = 12
 private let drawerCornerRadius:    CGFloat = 18
-private let emptyMessageFontSize:  CGFloat = 44
+private let emptyMessageFontSize:  CGFloat = 28
 private let cardSpacing:           CGFloat = 4
 private let scrollBarReserve:      CGFloat = 6
 private let scrollBarHeight:       CGFloat = 2.5
@@ -32,7 +32,7 @@ enum DrawerSection: Hashable {
         switch self {
         case .recent: "Recent"
         case .pinned: "Pinned"
-        case .category(let cat): cat.rawValue
+        case .category(let cat): cat.displayName
         }
     }
 
@@ -62,10 +62,11 @@ struct ClipboardDrawerView: View {
     @State private var isClearing = false
     @State private var clearIncludesPinned = false
     @State private var hoveredCardID: ClipboardItem.ID?
+    @State private var keySelection: Int?
     @State private var searchQuery = ""
     @FocusState private var searchFocused: Bool
 
-    let onRestore:      (ClipboardItem) -> Bool
+    let onRestore:      (ClipboardItem, _ plainText: Bool) -> Bool
     let onDelete:       @MainActor (ClipboardItem) async -> Void
     let onTogglePin:    @MainActor (ClipboardItem) async -> Void
     let onClearAll:     @MainActor (Bool) async -> Void
@@ -82,7 +83,7 @@ struct ClipboardDrawerView: View {
         }
         .overlay {
             if isClearing {
-                ClipyFrostedConfirmationOverlay(
+                CopyDockFrostedConfirmationOverlay(
                     title: "Clear clipboard history?",
                     message: "This permanently deletes all saved clipboard items.",
                     confirmTitle: "Clear History",
@@ -106,9 +107,10 @@ struct ClipboardDrawerView: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: drawerCornerRadius, style: .continuous))
         .animation(.easeOut(duration: 0.22), value: isClearing)
-        .onReceive(NotificationCenter.default.publisher(for: .clipyDrawerWillShow)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .copydockDrawerWillShow)) { _ in
             selectedSection = .recent
             hoveredCardID = nil
+            keySelection = nil
             searchQuery = ""
             searchFocused = false
             Task { await refreshItems() }
@@ -117,17 +119,18 @@ struct ClipboardDrawerView: View {
             Task { await refreshItems() }
         }
         .task { await refreshItems() }
-        .onChange(of: selectedSection) { _, _ in hoveredCardID = nil }
+        .onChange(of: selectedSection) { _, _ in hoveredCardID = nil; keySelection = nil }
+        .onChange(of: searchQuery) { _, _ in keySelection = nil }
         .onChange(of: isClearing) { _, clearing in
             NotificationCenter.default.post(
-                name: .clipyBlockAutoMinimize,
+                name: .copydockBlockAutoMinimize,
                 object: nil,
                 userInfo: ["blocked": clearing]
             )
         }
         .onDisappear {
             NotificationCenter.default.post(
-                name: .clipyBlockAutoMinimize,
+                name: .copydockBlockAutoMinimize,
                 object: nil,
                 userInfo: ["blocked": false]
             )
@@ -152,10 +155,10 @@ struct ClipboardDrawerView: View {
         switch item.category {
         case .text, .link:
             return item.contents.contains { $0.stringValue?.lowercased().contains(q) == true }
-        case .other, .doc:
+        case .image, .doc:
             if let fileURL = dragFileURL(from: item.contents),
                fileURL.lastPathComponent.lowercased().contains(q) { return true }
-            if let blobPath = item.contents.first(where: { $0.type == "clipy.blob" })?.stringValue {
+            if let blobPath = item.contents.first(where: { $0.type == "copydock.blob" })?.stringValue {
                 let filename = (blobPath as NSString).lastPathComponent
                 if filename.lowercased().contains(q) { return true }
             }
@@ -174,19 +177,34 @@ struct ClipboardDrawerView: View {
     private func refreshItems() async { items = await loadItems() }
 
     private func minimizeDrawer() {
-        NotificationCenter.default.post(name: .minimizeClipyDrawer, object: nil)
+        NotificationCenter.default.post(name: .minimizeCopyDockDrawer, object: nil)
     }
 
-    private func restoreAndClose(_ item: ClipboardItem) {
-        let success = onRestore(item)
-        ClipyNotifier.notifyRestore(
+    private func restoreAndClose(_ item: ClipboardItem, plainText: Bool = false) {
+        let success = onRestore(item, plainText)
+        let willAutoPaste = settings.pasteDirectly && Paster.isTrusted
+        CopyDockNotifier.notifyRestore(
             success: success,
-            message: success ? ClipyNotifier.successMessage : ClipyNotifier.failureMessage
+            message: success ? (willAutoPaste ? "Pasted" : CopyDockNotifier.successMessage) : CopyDockNotifier.failureMessage
         )
 
         if success {
             minimizeDrawer()
         }
+    }
+
+    private func restoreAtIndex(_ index: Int) {
+        let sectionItems = items(for: selectedSection)
+        guard sectionItems.indices.contains(index) else { return }
+        restoreAndClose(sectionItems[index])
+    }
+
+    private func moveKeySelection(by delta: Int) {
+        let count = items(for: selectedSection).count
+        guard count > 0 else { return }
+        // With no selection yet, either arrow starts at the first card.
+        let next = (keySelection ?? (delta > 0 ? -1 : 1)) + delta
+        keySelection = min(max(next, 0), count - 1)
     }
 
 
@@ -205,7 +223,7 @@ struct ClipboardDrawerView: View {
     private var headerBar: some View {
         ZStack {
             if !searchFocused && searchQuery.isEmpty {
-                Text("Click to copy · Right-click to pin · Drag to drop")
+                Text("Click to paste · ⌥-click for plain text · Right-click to pin · Drag to drop")
                     .font(.system(size: headerHintTextSize, weight: .regular))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -215,7 +233,7 @@ struct ClipboardDrawerView: View {
 
             HStack(spacing: 0) {
                 HStack(spacing: 6) {
-                    Text("Clipy")
+                    Text("CopyDock")
                         .font(.system(size: brandTextSize, weight: .bold))
                         .foregroundStyle(.primary)
 
@@ -234,14 +252,23 @@ struct ClipboardDrawerView: View {
 
                 HStack(spacing: 6) {
                     Button { isClearing = true } label: {
-                        ClipyClearAllPillLabel(title: "Clear History")
+                        CopyDockClearAllPillLabel(title: "Clear History")
                     }
                     .buttonStyle(.plain)
 
+                    Button {
+                        NotificationCenter.default.post(name: .openCopyDockSettings, object: nil)
+                    } label: {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Settings")
+
                     MacTrafficLights(
-                        onClose: { NotificationCenter.default.post(name: .closeClipyDrawer, object: nil) },
-                        onMinimize: minimizeDrawer,
-                        onZoom: { NotificationCenter.default.post(name: .openClipySettings, object: nil) }
+                        onClose: { NotificationCenter.default.post(name: .closeCopyDockDrawer, object: nil) },
+                        onMinimize: minimizeDrawer
                     )
                 }
             }
@@ -253,13 +280,39 @@ struct ClipboardDrawerView: View {
                     searchQuery = ""
                     searchFocused = false
                 } else {
-                    NotificationCenter.default.post(name: .closeClipyDrawer, object: nil)
+                    NotificationCenter.default.post(name: .closeCopyDockDrawer, object: nil)
                 }
             }
             .keyboardShortcut(.escape, modifiers: [])
             .opacity(0)
             .frame(width: 0, height: 0)
+
+            keyboardShortcutButtons
         }
+    }
+
+    /// Invisible buttons that give the drawer a keyboard-only flow:
+    /// ⌘1–⌘9 paste the Nth card; arrows + Return work when search isn't focused.
+    private var keyboardShortcutButtons: some View {
+        Group {
+            ForEach(0..<9, id: \.self) { i in
+                Button("") { restoreAtIndex(i) }
+                    .keyboardShortcut(KeyEquivalent(Character("\(i + 1)")), modifiers: .command)
+            }
+
+            if !searchFocused {
+                Button("") { moveKeySelection(by: 1) }
+                    .keyboardShortcut(.rightArrow, modifiers: [])
+                Button("") { moveKeySelection(by: -1) }
+                    .keyboardShortcut(.leftArrow, modifiers: [])
+                Button("") {
+                    if let keySelection { restoreAtIndex(keySelection) }
+                }
+                .keyboardShortcut(.return, modifiers: [])
+            }
+        }
+        .opacity(0)
+        .frame(width: 0, height: 0)
     }
 
     private var searchPill: some View {
@@ -302,7 +355,7 @@ struct ClipboardDrawerView: View {
         let isSelected = selectedSection == section
 
         return Button {
-            withAnimation(ClipyGlass.categoryAnimation) {
+            withAnimation(CopyDockGlass.categoryAnimation) {
                 selectedSection = section
             }
         } label: {
@@ -354,21 +407,30 @@ struct ClipboardDrawerView: View {
             showsIndicator: rowItems.count > layout.visibleCount,
             barReserve: scrollBarReserve
         ) {
-            HStack(spacing: cardSpacing) {
-                ForEach(Array(rowItems.enumerated()), id: \.element.id) { index, item in
-                    itemCard(item, layout: layout, index: index)
+            ScrollViewReader { proxy in
+                HStack(spacing: cardSpacing) {
+                    ForEach(Array(rowItems.enumerated()), id: \.element.id) { index, item in
+                        itemCard(item, layout: layout, index: index)
+                            .id(item.id)
+                    }
+                }
+                .padding(.horizontal, cardHoverPadding)
+                .padding(.vertical, cardHoverPadding)
+                .padding(.bottom, cardToScrollbarGap)
+                .onChange(of: keySelection) { _, selection in
+                    guard let selection, rowItems.indices.contains(selection) else { return }
+                    withAnimation(cardHoverAnimation) {
+                        proxy.scrollTo(rowItems[selection].id, anchor: .center)
+                    }
                 }
             }
-            .padding(.horizontal, cardHoverPadding)
-            .padding(.vertical, cardHoverPadding)
-            .padding(.bottom, cardToScrollbarGap)
         }
         .frame(height: layout.height + scrollBarReserve + cardToScrollbarGap + cardHoverPadding * 2)
     }
 
     private func itemCard(_ item: ClipboardItem, layout: CardLayout, index: Int) -> some View {
-        let isHovered = hoveredCardID == item.id
-        let peerHovered = hoveredCardID != nil && !isHovered
+        let isHovered = hoveredCardID == item.id || keySelection == index
+        let peerHovered = (hoveredCardID != nil || keySelection != nil) && !isHovered
 
         return RecentItemCard(
             item: item,
@@ -377,6 +439,7 @@ struct ClipboardDrawerView: View {
             flipAngle: flipAngle(for: index),
             isHovered: isHovered,
             onTap: { restoreAndClose(item) },
+            onPastePlain: { restoreAndClose(item, plainText: true) },
             onTogglePin: { Task { await onTogglePin(item); await refreshItems() } },
             onRemove: {
                 if hoveredCardID == item.id { hoveredCardID = nil }
@@ -391,6 +454,7 @@ struct ClipboardDrawerView: View {
         .brightness(isHovered ? 0.04 : peerHovered ? -0.015 : 0)
         .zIndex(isHovered ? 1 : 0)
         .animation(cardHoverAnimation, value: hoveredCardID)
+        .animation(cardHoverAnimation, value: keySelection)
         .onHover { hovering in
             if hovering {
                 hoveredCardID = item.id
@@ -470,12 +534,12 @@ private struct SleekHorizontalScrollView<Content: View>: View {
                             GeometryReader { geo in
                                 Color.clear
                                     .preference(key: ScrollContentWidthKey.self, value: geo.size.width)
-                                    .preference(key: ScrollOffsetKey.self, value: geo.frame(in: .named("clipyHScroll")).minX)
+                                    .preference(key: ScrollOffsetKey.self, value: geo.frame(in: .named("copydockHScroll")).minX)
                             }
                         )
                 }
                 .scrollIndicators(.hidden)
-                .coordinateSpace(name: "clipyHScroll")
+                .coordinateSpace(name: "copydockHScroll")
                 .frame(height: max(0, outer.size.height - barReserve))
 
                 SleekHorizontalScrollTrack(

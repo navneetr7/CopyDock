@@ -23,7 +23,7 @@ enum ImagePreviewLoader {
     }
 
     static func loadData(from item: ClipboardItem, store: BlobStoring = BlobStore()) -> Data? {
-        for content in item.contents where content.type == "clipy.blob" {
+        for content in item.contents where content.type == "copydock.blob" {
             if let path = content.stringValue,
                let data = try? store.load(relativePath: path),
                imageFromData(data) != nil {
@@ -45,7 +45,7 @@ enum ImagePreviewLoader {
         for content in item.contents {
             let type = content.type.lowercased()
             guard !type.contains("text"), !type.contains("url"), !type.contains("string"),
-                  !type.contains("html"), !type.contains("rtf"), type != "clipy.blob" else { continue }
+                  !type.contains("html"), !type.contains("rtf"), type != "copydock.blob" else { continue }
             guard let data = content.value, data.count > 512, imageFromData(data) != nil else { continue }
             return data
         }
@@ -62,7 +62,7 @@ enum ImagePreviewLoader {
         let type = content.type.lowercased()
         if imageTypeHints.contains(where: { type.contains($0) }) { return true }
 
-        if content.type == "clipy.blob", let path = content.stringValue?.lowercased() {
+        if content.type == "copydock.blob", let path = content.stringValue?.lowercased() {
             return imageFileExtensions.contains { path.hasSuffix(".\($0)") }
         }
 

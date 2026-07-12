@@ -13,6 +13,14 @@ final class UserSettings {
         didSet { UserDefaults.standard.set(retentionDays, forKey: Keys.retentionDays) }
     }
 
+    var pasteDirectly: Bool {
+        didSet { UserDefaults.standard.set(pasteDirectly, forKey: Keys.pasteDirectly) }
+    }
+
+    var excludedAppIDs: [String] {
+        didSet { UserDefaults.standard.set(excludedAppIDs, forKey: Keys.excludedAppIDs) }
+    }
+
     var historyLimitUnlimited: Bool {
         didSet {
             UserDefaults.standard.set(historyLimitUnlimited, forKey: Keys.historyLimitUnlimited)
@@ -58,7 +66,7 @@ final class UserSettings {
             UserDefaults.standard.set(preferredPosition.rawValue, forKey: Keys.preferredPosition)
             if oldValue != preferredPosition {
                 clearWidgetCustomPosition()
-                NotificationCenter.default.post(name: .clipyDrawerPositionChanged, object: nil)
+                NotificationCenter.default.post(name: .copydockDrawerPositionChanged, object: nil)
             }
         }
     }
@@ -69,7 +77,7 @@ final class UserSettings {
             if !showFloatingPill {
                 clearWidgetCustomPosition()
             }
-            NotificationCenter.default.post(name: .clipyDrawerPositionChanged, object: nil)
+            NotificationCenter.default.post(name: .copydockDrawerPositionChanged, object: nil)
         }
     }
 
@@ -88,7 +96,7 @@ final class UserSettings {
 
     var hasCustomWidgetPosition: Bool { widgetCustomOrigin != nil }
 
-    static let shortcutName = KeyboardShortcuts.Name("openClipyDrawer")
+    static let shortcutName = KeyboardShortcuts.Name("openCopyDockDrawer")
 
     enum DrawerPosition: String, CaseIterable, Codable {
         case top, bottom
@@ -102,16 +110,18 @@ final class UserSettings {
     }
 
     private enum Keys {
-        static let autoStart             = "clipy.autoStart"
-        static let retentionDays         = "clipy.retentionDays"
-        static let historyLimitUnlimited = "clipy.historyLimitUnlimited"
-        static let historyLimitCount     = "clipy.historyLimitCount"
-        static let pinnedLimitUnlimited  = "clipy.pinnedLimitUnlimited"
-        static let pinnedLimitCount      = "clipy.pinnedLimitCount"
-        static let preferredPosition     = "clipy.preferredPosition"
-        static let showFloatingPill      = "clipy.showFloatingPill"
-        static let widgetOriginX         = "clipy.widgetOriginX"
-        static let widgetOriginY         = "clipy.widgetOriginY"
+        static let autoStart             = "copydock.autoStart"
+        static let retentionDays         = "copydock.retentionDays"
+        static let pasteDirectly         = "copydock.pasteDirectly"
+        static let excludedAppIDs        = "copydock.excludedAppIDs"
+        static let historyLimitUnlimited = "copydock.historyLimitUnlimited"
+        static let historyLimitCount     = "copydock.historyLimitCount"
+        static let pinnedLimitUnlimited  = "copydock.pinnedLimitUnlimited"
+        static let pinnedLimitCount      = "copydock.pinnedLimitCount"
+        static let preferredPosition     = "copydock.preferredPosition"
+        static let showFloatingPill      = "copydock.showFloatingPill"
+        static let widgetOriginX         = "copydock.widgetOriginX"
+        static let widgetOriginY         = "copydock.widgetOriginY"
     }
 
     private static func clampHistoryCount(_ value: Int) -> Int {
@@ -123,7 +133,7 @@ final class UserSettings {
     }
 
     private func notifyLimitsDidChange() {
-        NotificationCenter.default.post(name: .clipyLimitsDidChange, object: nil)
+        NotificationCenter.default.post(name: .copydockLimitsDidChange, object: nil)
     }
 
     func clearWidgetCustomPosition() { widgetCustomOrigin = nil }
@@ -133,6 +143,14 @@ final class UserSettings {
 
         let days = UserDefaults.standard.integer(forKey: Keys.retentionDays)
         self.retentionDays = days > 0 ? days : 30
+
+        if UserDefaults.standard.object(forKey: Keys.pasteDirectly) != nil {
+            self.pasteDirectly = UserDefaults.standard.bool(forKey: Keys.pasteDirectly)
+        } else {
+            self.pasteDirectly = true
+        }
+
+        self.excludedAppIDs = UserDefaults.standard.stringArray(forKey: Keys.excludedAppIDs) ?? []
 
         if UserDefaults.standard.object(forKey: Keys.historyLimitUnlimited) != nil {
             self.historyLimitUnlimited = UserDefaults.standard.bool(forKey: Keys.historyLimitUnlimited)
@@ -181,6 +199,8 @@ final class UserSettings {
     func resetToDefaults() {
         autoStart = false
         retentionDays = 30
+        pasteDirectly = true
+        excludedAppIDs = []
         historyLimitUnlimited = false
         historyLimitCount = Self.defaultHistoryLimitCount
         pinnedLimitUnlimited = false

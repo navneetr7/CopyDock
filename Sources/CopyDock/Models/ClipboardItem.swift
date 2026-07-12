@@ -10,9 +10,10 @@ final class ClipboardItem {
     var preview: String
     var contents: [HistoryItemContent]
     var isPinned: Bool = false
+    var contentHash: String = ""
 
     var category: ClipboardCategory {
-        get { ClipboardCategory(rawValue: categoryRaw) ?? .other }
+        get { ClipboardCategory(rawValue: categoryRaw) ?? .image }
         set { categoryRaw = newValue.rawValue }
     }
 
@@ -22,7 +23,8 @@ final class ClipboardItem {
         category: ClipboardCategory,
         contents: [HistoryItemContent],
         sourceApp: String? = nil,
-        preview: String = ""
+        preview: String = "",
+        contentHash: String = ""
     ) {
         self.id = id
         self.timestamp = timestamp
@@ -30,6 +32,7 @@ final class ClipboardItem {
         self.contents = contents
         self.sourceApp = sourceApp
         self.preview = preview.isEmpty ? Self.makeDefaultPreview(from: contents) : preview
+        self.contentHash = contentHash
     }
 
     private static func makeDefaultPreview(from contents: [HistoryItemContent]) -> String {

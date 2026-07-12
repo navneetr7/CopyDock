@@ -12,7 +12,7 @@ func dragUTI(forExtension ext: String) -> String {
 }
 
 func dragImageUTI(for item: ClipboardItem, data: Data) -> String {
-    if let blobPath = item.contents.first(where: { $0.type == "clipy.blob" })?.stringValue {
+    if let blobPath = item.contents.first(where: { $0.type == "copydock.blob" })?.stringValue {
         let ext = (blobPath as NSString).pathExtension
         if !ext.isEmpty { return dragUTI(forExtension: ext) }
     }
@@ -60,13 +60,13 @@ func dragTIFFData(from data: Data) -> Data? {
 
 func dragSessionPreview(for item: ClipboardItem) -> NSImage? {
     switch item.category {
-    case .other:
+    case .image:
         return ImagePreviewLoader.loadImage(from: item)
     case .doc:
         if let fileURL = dragFileURL(from: item.contents) {
             return NSWorkspace.shared.icon(forFile: fileURL.path)
         }
-        if let blobPath = item.contents.first(where: { $0.type == "clipy.blob" })?.stringValue {
+        if let blobPath = item.contents.first(where: { $0.type == "copydock.blob" })?.stringValue {
             let ext = (blobPath as NSString).pathExtension
             if let uti = UTType(filenameExtension: ext) { return NSWorkspace.shared.icon(for: uti) }
         }
@@ -76,9 +76,10 @@ func dragSessionPreview(for item: ClipboardItem) -> NSImage? {
     }
 }
 
-struct ClipyCardDragLayer: NSViewRepresentable {
+struct CopyDockCardDragLayer: NSViewRepresentable {
     let item: ClipboardItem
     let onTap: () -> Void
+    let onPastePlain: () -> Void
     let onTogglePin: () -> Void
     let onRemove: () -> Void
 
@@ -86,6 +87,7 @@ struct ClipyCardDragLayer: NSViewRepresentable {
         let view = CardDragSourceView()
         view.item = item
         view.onTap = onTap
+        view.onPastePlain = onPastePlain
         view.onTogglePin = onTogglePin
         view.onRemove = onRemove
         return view
@@ -94,6 +96,7 @@ struct ClipyCardDragLayer: NSViewRepresentable {
     func updateNSView(_ nsView: CardDragSourceView, context: Context) {
         nsView.item = item
         nsView.onTap = onTap
+        nsView.onPastePlain = onPastePlain
         nsView.onTogglePin = onTogglePin
         nsView.onRemove = onRemove
     }
@@ -102,6 +105,7 @@ struct ClipyCardDragLayer: NSViewRepresentable {
 final class CardDragSourceView: NSView, NSDraggingSource {
     var item: ClipboardItem?
     var onTap: (() -> Void)?
+    var onPastePlain: (() -> Void)?
     var onTogglePin: (() -> Void)?
     var onRemove: (() -> Void)?
 
@@ -125,7 +129,7 @@ final class CardDragSourceView: NSView, NSDraggingSource {
         guard dx * dx + dy * dy >= dragThresholdSquared else { return }
 
         sessionStarted = true
-        NotificationCenter.default.post(name: .clipyDrawerDragDidBegin, object: nil)
+        NotificationCenter.default.post(name: .copydockDrawerDragDidBegin, object: nil)
 
         let writer = pasteboardWriter(for: item)
         let draggingItem = NSDraggingItem(pasteboardWriter: writer)
@@ -135,30 +139,47 @@ final class CardDragSourceView: NSView, NSDraggingSource {
     }
 
     override func mouseUp(with event: NSEvent) {
-        if !sessionStarted { onTap?() }
+        if !sessionStarted {
+            if event.modifierFlags.contains(.option) {
+                onPastePlain?()
+            } else {
+                onTap?()
+            }
+        }
         pressLocation = nil
         sessionStarted = false
     }
 
     override func rightMouseDown(with event: NSEvent) {
-        let pasteItem = NSMenuItem(title: "Paste to Clipboard", action: #selector(handlePaste), keyEquivalent: "")
+        let menu = NSMenu()
+
+        let pasteItem = NSMenuItem(title: "Paste", action: #selector(handlePaste), keyEquivalent: "")
         pasteItem.target = self
+        menu.addItem(pasteItem)
+
+        if item?.contents.contains(where: { $0.isString }) == true {
+            let plainItem = NSMenuItem(title: "Paste as Plain Text", action: #selector(handlePastePlain), keyEquivalent: "")
+            plainItem.target = self
+            menu.addItem(plainItem)
+        }
+
+        menu.addItem(.separator())
         let pinTitle = (item?.isPinned == true) ? "Unpin" : "Pin"
         let pinItem = NSMenuItem(title: pinTitle, action: #selector(handleTogglePin), keyEquivalent: "")
         pinItem.target = self
+        menu.addItem(pinItem)
+
+        menu.addItem(.separator())
         let removeItem = NSMenuItem(title: "Remove", action: #selector(handleRemove), keyEquivalent: "")
         removeItem.target = self
         removeItem.attributedTitle = NSAttributedString(string: "Remove", attributes: [.foregroundColor: NSColor.systemRed])
-        let menu = NSMenu()
-        menu.addItem(pasteItem)
-        menu.addItem(.separator())
-        menu.addItem(pinItem)
-        menu.addItem(.separator())
         menu.addItem(removeItem)
+
         NSMenu.popUpContextMenu(menu, with: event, for: self)
     }
 
     @objc private func handlePaste()      { onTap?() }
+    @objc private func handlePastePlain() { onPastePlain?() }
     @objc private func handleTogglePin()  { onTogglePin?() }
     @objc private func handleRemove()     { onRemove?() }
 
@@ -174,7 +195,7 @@ final class CardDragSourceView: NSView, NSDraggingSource {
                let url = URL(string: urlStr) { return url as NSURL }
             return item.preview as NSString
 
-        case .other:
+        case .image:
             if let fileURL = dragFileURL(from: item.contents),
                FileManager.default.fileExists(atPath: fileURL.path) { return fileURL as NSURL }
             if let data = ImagePreviewLoader.loadData(from: item, store: store) {
@@ -195,17 +216,17 @@ final class CardDragSourceView: NSView, NSDraggingSource {
         case .doc:
             if let fileURL = dragFileURL(from: item.contents),
                FileManager.default.fileExists(atPath: fileURL.path) { return fileURL as NSURL }
-            if let blobPath = item.contents.first(where: { $0.type == "clipy.blob" })?.stringValue,
+            if let blobPath = item.contents.first(where: { $0.type == "copydock.blob" })?.stringValue,
                let data = try? store.load(relativePath: blobPath) {
                 let ext = (blobPath as NSString).pathExtension
                 let tmp = FileManager.default.temporaryDirectory
-                    .appendingPathComponent("clipy_\(UUID().uuidString)_\(dragDocFilename(for: item, ext: ext))")
+                    .appendingPathComponent("copydock_\(UUID().uuidString)_\(dragDocFilename(for: item, ext: ext))")
                 if (try? data.write(to: tmp)) != nil { return tmp as NSURL }
             }
             if let pdfContent = item.contents.first(where: { $0.type.contains("pdf") }),
                let data = pdfContent.value {
                 let tmp = FileManager.default.temporaryDirectory
-                    .appendingPathComponent("clipy_\(UUID().uuidString)_\(dragDocFilename(for: item, ext: "pdf"))")
+                    .appendingPathComponent("copydock_\(UUID().uuidString)_\(dragDocFilename(for: item, ext: "pdf"))")
                 if (try? data.write(to: tmp)) != nil { return tmp as NSURL }
                 let pItem = NSPasteboardItem()
                 pItem.setData(data, forType: NSPasteboard.PasteboardType(UTType.pdf.identifier))
@@ -220,7 +241,7 @@ final class CardDragSourceView: NSView, NSDraggingSource {
     }
 
     func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
-        NotificationCenter.default.post(name: .clipyDrawerDragDidEnd, object: nil, userInfo: ["operation": operation.rawValue])
+        NotificationCenter.default.post(name: .copydockDrawerDragDidEnd, object: nil, userInfo: ["operation": operation.rawValue])
         sessionStarted = false
         pressLocation = nil
     }

@@ -4,7 +4,7 @@ import AppKit
 struct MinimizedDrawerStrip: View {
     var body: some View {
         Group {
-            if let img = Bundle.main.image(forResource: "clipy_pill") {
+            if let img = Bundle.main.image(forResource: "copydock_pill") {
                 Image(nsImage: img)
                     .resizable()
                     .interpolation(.high)

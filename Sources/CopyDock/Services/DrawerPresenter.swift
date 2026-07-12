@@ -7,8 +7,8 @@ final class DrawerPresenter {
     private enum DisplayMode { case expanded, minimized }
 
     private var panel: NSPanel?
-    private var contentContainer: ClipyContentContainer?
-    private var hostingView: ClipyHostingView?
+    private var contentContainer: CopyDockContentContainer?
+    private var hostingView: CopyDockHostingView?
     private var widgetOverlay: WidgetOverlayView?
     private let contentView: () -> AnyView
     private let settings: UserSettings
@@ -54,7 +54,7 @@ final class DrawerPresenter {
             suppressResignMinimize = true
             isPresentingDrawer = true
             setInteraction(.drawer, on: panel)
-            NotificationCenter.default.post(name: .clipyDrawerWillShow, object: nil)
+            NotificationCenter.default.post(name: .copydockDrawerWillShow, object: nil)
             presentExpanded(panel, userInitiated: true)
             finishPresentingDrawer()
         }
@@ -72,19 +72,19 @@ final class DrawerPresenter {
         guard let panel, panel.isVisible else { return }
 
         guard settings.showFloatingPill else {
-            NotificationCenter.default.post(name: .clipyDrawerDidMinimize, object: nil)
+            NotificationCenter.default.post(name: .copydockDrawerDidMinimize, object: nil)
             hide()
             return
         }
 
         if displayMode == .minimized {
-            NotificationCenter.default.post(name: .clipyDrawerDidMinimize, object: nil)
+            NotificationCenter.default.post(name: .copydockDrawerDidMinimize, object: nil)
             return
         }
 
         displayMode = .minimized
         suppressResignMinimize = true
-        NotificationCenter.default.post(name: .clipyDrawerDidMinimize, object: nil)
+        NotificationCenter.default.post(name: .copydockDrawerDidMinimize, object: nil)
         setInteraction(.widget, on: panel)
         applyFrame(to: panel, mode: .minimized)
         panel.hasShadow = false
@@ -103,8 +103,8 @@ final class DrawerPresenter {
         displayMode = .expanded
 
         setInteraction(.drawer, on: panel)
-        NotificationCenter.default.post(name: .clipyDrawerDidExpand, object: nil)
-        NotificationCenter.default.post(name: .clipyDrawerWillShow, object: nil)
+        NotificationCenter.default.post(name: .copydockDrawerDidExpand, object: nil)
+        NotificationCenter.default.post(name: .copydockDrawerWillShow, object: nil)
         applyFrame(to: panel, mode: .expanded)
         panel.hasShadow = true
         presentExpanded(panel, userInitiated: userInitiated)
@@ -166,7 +166,7 @@ final class DrawerPresenter {
     private func makeOrReusePanel() -> NSPanel {
         if let existing = panel { return existing }
 
-        let hosting = ClipyHostingView(rootView: contentView())
+        let hosting = CopyDockHostingView(rootView: contentView())
 
         let overlay = WidgetOverlayView(frame: .zero)
         overlay.onClick = { [weak self] in
@@ -179,9 +179,9 @@ final class DrawerPresenter {
             MainActor.assumeIsolated { self?.finishWidgetMove() }
         }
 
-        let container = ClipyContentContainer(hostingView: hosting, widgetOverlay: overlay)
+        let container = CopyDockContentContainer(hostingView: hosting, widgetOverlay: overlay)
 
-        let newPanel = ClipyPanel(
+        let newPanel = CopyDockPanel(
             contentRect: .zero,
             styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
             backing: .buffered,
@@ -237,21 +237,21 @@ final class DrawerPresenter {
         observersInstalled = true
 
         NotificationCenter.default.addObserver(
-            forName: .closeClipyDrawer, object: nil, queue: .main
+            forName: .closeCopyDockDrawer, object: nil, queue: .main
         ) { [weak self] _ in
             guard let self else { return }
             MainActor.assumeIsolated { self.hide() }
         }
 
         NotificationCenter.default.addObserver(
-            forName: .minimizeClipyDrawer, object: nil, queue: .main
+            forName: .minimizeCopyDockDrawer, object: nil, queue: .main
         ) { [weak self] _ in
             guard let self else { return }
             MainActor.assumeIsolated { self.minimize() }
         }
 
         NotificationCenter.default.addObserver(
-            forName: .clipyDrawerExpand, object: nil, queue: .main
+            forName: .copydockDrawerExpand, object: nil, queue: .main
         ) { [weak self] notification in
             guard let self else { return }
             let userInitiated = (notification.userInfo?["userInitiated"] as? Bool) ?? true
@@ -259,14 +259,21 @@ final class DrawerPresenter {
         }
 
         NotificationCenter.default.addObserver(
-            forName: .clipyDrawerPositionChanged, object: nil, queue: .main
+            forName: .copydockDrawerPositionChanged, object: nil, queue: .main
         ) { [weak self] _ in
             guard let self else { return }
             MainActor.assumeIsolated { self.repositionIfNeeded() }
         }
 
         NotificationCenter.default.addObserver(
-            forName: .clipyBlockAutoMinimize, object: nil, queue: .main
+            forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            MainActor.assumeIsolated { self.repositionIfNeeded() }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: .copydockBlockAutoMinimize, object: nil, queue: .main
         ) { [weak self] notification in
             guard let self else { return }
             let blocked = (notification.userInfo?["blocked"] as? Bool) ?? false
@@ -274,14 +281,14 @@ final class DrawerPresenter {
         }
 
         NotificationCenter.default.addObserver(
-            forName: .clipyDrawerDragDidBegin, object: nil, queue: .main
+            forName: .copydockDrawerDragDidBegin, object: nil, queue: .main
         ) { [weak self] _ in
             guard let self else { return }
             MainActor.assumeIsolated { self.drawerDragInProgress = true }
         }
 
         NotificationCenter.default.addObserver(
-            forName: .clipyDrawerDragDidEnd, object: nil, queue: .main
+            forName: .copydockDrawerDragDidEnd, object: nil, queue: .main
         ) { [weak self] notification in
             guard let self else { return }
             let raw = notification.userInfo?["operation"] as? UInt ?? 0

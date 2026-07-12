@@ -4,7 +4,7 @@ import SwiftUI
 import UserNotifications
 
 @MainActor
-enum ClipyNotifier {
+enum CopyDockNotifier {
 
     static let successMessage = "Ready to paste"
     static let failureMessage = "Something went wrong"
@@ -109,13 +109,13 @@ enum ClipyNotifier {
         guard await requestPermissionIfNeeded() else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = "Clipy"
+        content.title = "CopyDock"
         content.body = message
         if success { content.sound = .default }
 
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.01, repeats: false)
         let request = UNNotificationRequest(
-            identifier: "clipy.restore.\(UUID().uuidString)",
+            identifier: "copydock.restore.\(UUID().uuidString)",
             content: content,
             trigger: trigger
         )

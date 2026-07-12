@@ -5,11 +5,13 @@ import KeyboardShortcuts
 import Combine
 
 @MainActor
-final class ClipyAppDelegate: NSObject, NSApplicationDelegate {
+final class CopyDockAppDelegate: NSObject, NSApplicationDelegate {
     private let statusItemController = StatusItemController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        CopyDockNotifier.configure()
+        Paster.install()
         statusItemController.install()
     }
 
@@ -19,8 +21,8 @@ final class ClipyAppDelegate: NSObject, NSApplicationDelegate {
 }
 
 @main
-struct ClipyApp: App {
-    @NSApplicationDelegateAdaptor(ClipyAppDelegate.self) private var appDelegate
+struct CopyDockApp: App {
+    @NSApplicationDelegateAdaptor(CopyDockAppDelegate.self) private var appDelegate
     private let modelContainer: ModelContainer
 
     @State private var historyStore: HistoryStore
@@ -32,14 +34,24 @@ struct ClipyApp: App {
     @State private var drawerPresenter: DrawerPresenter
     @State private var hotkeyManager: HotkeyManager
 
-    @State private var repositionTask: Task<Void, Never>? = nil
     private let settingsWindowController: SettingsWindowController
 
     init() {
         do {
             modelContainer = try ModelContainer(for: ClipboardItem.self)
         } catch {
-            fatalError("Failed to initialize SwiftData ModelContainer: \(error)")
+            // Store is unreadable (e.g. schema changed without a migration). Clipboard
+            // history is disposable — recreate the store rather than crash-loop at login.
+            for suffix in ["", "-shm", "-wal"] {
+                try? FileManager.default.removeItem(
+                    at: URL.applicationSupportDirectory.appending(path: "default.store\(suffix)")
+                )
+            }
+            do {
+                modelContainer = try ModelContainer(for: ClipboardItem.self)
+            } catch {
+                fatalError("Failed to initialize SwiftData ModelContainer: \(error)")
+            }
         }
 
         let context = modelContainer.mainContext
@@ -57,9 +69,19 @@ struct ClipyApp: App {
         let drawerContentFactory: () -> AnyView = { [store, writer, monitor] in
             AnyView(
                 DrawerRootView(
-                    onRestore: { item in
-                        let success = writer.write(item: item)
+                    onRestore: { item, plainText in
+                        let success = writer.write(item: item, plainTextOnly: plainText)
                         monitor.skipCurrentPasteboardChange()
+                        if success, UserSettings.shared.pasteDirectly {
+                            if Paster.isTrusted {
+                                // Wait for the drawer to minimize and focus to return.
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                    Paster.pasteIntoTargetApp()
+                                }
+                            } else {
+                                Paster.requestAccess()
+                            }
+                        }
                         return success
                     },
                     onDelete: { item in
@@ -110,7 +132,7 @@ struct ClipyApp: App {
         self.settingsWindowController = settingsWindowController
 
         NotificationCenter.default.addObserver(
-            forName: .openClipyDrawer,
+            forName: .openCopyDockDrawer,
             object: nil,
             queue: .main
         ) { [monitor, store, presenter] _ in
@@ -121,7 +143,7 @@ struct ClipyApp: App {
         }
 
         NotificationCenter.default.addObserver(
-            forName: .openClipySettings,
+            forName: .openCopyDockSettings,
             object: nil,
             queue: .main
         ) { [settingsWindowController] _ in
@@ -130,8 +152,20 @@ struct ClipyApp: App {
             }
         }
 
-        Task { @MainActor [monitor] in
+        Task { @MainActor [monitor, store] in
             NSApp.setActivationPolicy(.accessory)
+
+            // Remove blob files no longer referenced by any history item
+            // (leaked when a save fails or the app dies mid-insert).
+            // Must finish before the monitor starts so an in-flight capture's
+            // freshly saved blob can't be mistaken for an orphan.
+            if let items = try? await store.fetchAll() {
+                let live = Set(items.flatMap { item in
+                    item.contents.compactMap { $0.type == "copydock.blob" ? $0.stringValue : nil }
+                })
+                BlobStore().cleanupOrphaned(currentRelativePaths: live)
+            }
+
             monitor.start()
         }
     }
@@ -142,41 +176,12 @@ struct ClipyApp: App {
         }
     }
 
-
-    private func startMonitoringIfNeeded() {
-        NSApp.setActivationPolicy(.accessory)
-        ClipyNotifier.configure()
-        Task { _ = await ClipyNotifier.requestPermissionIfNeeded() }
-        pasteboardMonitor.start()
-
-        if settings.autoStart != launchService.isEnabled {
-            try? launchService.setEnabled(settings.autoStart)
-        }
-
-        Task { @MainActor in
-            try? await historyStore.prune(
-                maxCount: settings.effectiveHistoryLimit,
-                maxAgeDays: settings.retentionDays
-            )
-        }
-
-        repositionTask?.cancel()
-        repositionTask = Task { @MainActor in
-            for await _ in Timer.publish(every: 1.5, on: .main, in: .common).autoconnect().values {
-                guard !Task.isCancelled else { break }
-                if drawerPresenter.isVisible {
-                    drawerPresenter.repositionIfNeeded()
-                }
-            }
-        }
-    }
-
     @MainActor
     private static func startServices(monitor: PasteboardMonitor, store: HistoryStore) {
         let settings = UserSettings.shared
         NSApp.setActivationPolicy(.accessory)
-        ClipyNotifier.configure()
-        Task { _ = await ClipyNotifier.requestPermissionIfNeeded() }
+        CopyDockNotifier.configure()
+        Task { _ = await CopyDockNotifier.requestPermissionIfNeeded() }
         monitor.start()
 
         let launchService = LaunchAtLoginService()

@@ -9,6 +9,8 @@ protocol HistoryStoring {
     func clearAll(includePinned: Bool) async throws
     func togglePin(_ item: ClipboardItem) async throws
     func prune(maxCount: Int, maxAgeDays: Int) async throws
+    func bumpDuplicate(contentHash: String) async throws -> Bool
+    func saveChanges() async throws
 }
 
 @MainActor
@@ -36,7 +38,7 @@ final class HistoryStore: HistoryStoring {
 
     func delete(_ item: ClipboardItem) async throws {
         let blobPaths = item.contents.compactMap { c -> String? in
-            c.type == "clipy.blob" ? c.stringValue : nil
+            c.type == "copydock.blob" ? c.stringValue : nil
         }
         let store = BlobStore()
         for path in blobPaths { try? store.delete(relativePath: path) }
@@ -51,7 +53,7 @@ final class HistoryStore: HistoryStoring {
         let store = BlobStore()
         for item in toDelete {
             let blobPaths = item.contents.compactMap { c -> String? in
-                c.type == "clipy.blob" ? c.stringValue : nil
+                c.type == "copydock.blob" ? c.stringValue : nil
             }
             for p in blobPaths { try? store.delete(relativePath: p) }
             modelContext.delete(item)
@@ -67,12 +69,29 @@ final class HistoryStore: HistoryStoring {
             let pinnedLimit = UserSettings.shared.effectivePinnedLimit
             if pinnedLimit > 0 {
                 let pinnedCount = try await fetchAll().filter(\.isPinned).count
-                guard pinnedCount < pinnedLimit else { return }
+                guard pinnedCount < pinnedLimit else {
+                    CopyDockNotifier.notifyRestore(success: false, message: "Pinned limit reached (\(pinnedLimit))")
+                    return
+                }
             }
             item.isPinned = true
         }
         try modelContext.save()
         NotificationCenter.default.post(name: .clipboardItemsDidChange, object: nil)
+    }
+
+    func bumpDuplicate(contentHash: String) async throws -> Bool {
+        guard !contentHash.isEmpty else { return false }
+        var descriptor = FetchDescriptor<ClipboardItem>(predicate: #Predicate { $0.contentHash == contentHash })
+        descriptor.fetchLimit = 1
+        guard let existing = try modelContext.fetch(descriptor).first else { return false }
+        existing.timestamp = .now
+        try modelContext.save()
+        return true
+    }
+
+    func saveChanges() async throws {
+        try modelContext.save()
     }
 
     func prune(maxCount: Int, maxAgeDays: Int) async throws {
@@ -86,7 +105,7 @@ final class HistoryStore: HistoryStoring {
             let cutoff = Calendar.current.date(byAdding: .day, value: -maxAgeDays, to: .now) ?? .distantPast
             let toDeleteByAge = unpinned.filter { $0.timestamp < cutoff }
             for item in toDeleteByAge {
-                item.contents.compactMap { $0.type == "clipy.blob" ? $0.stringValue : nil }
+                item.contents.compactMap { $0.type == "copydock.blob" ? $0.stringValue : nil }
                     .forEach { try? store.delete(relativePath: $0) }
                 modelContext.delete(item)
                 didDelete = true
@@ -97,7 +116,7 @@ final class HistoryStore: HistoryStoring {
         if maxCount > 0, unpinned.count > maxCount {
             let toDeleteByCount = unpinned.suffix(from: maxCount)
             for item in toDeleteByCount {
-                item.contents.compactMap { $0.type == "clipy.blob" ? $0.stringValue : nil }
+                item.contents.compactMap { $0.type == "copydock.blob" ? $0.stringValue : nil }
                     .forEach { try? store.delete(relativePath: $0) }
                 modelContext.delete(item)
                 didDelete = true

@@ -82,7 +82,7 @@ private final class RecorderState {
     }
 }
 
-struct ClipyShortcutRecorder: View {
+struct CopyDockShortcutRecorder: View {
     let name: KeyboardShortcuts.Name
 
     @State private var state: RecorderState

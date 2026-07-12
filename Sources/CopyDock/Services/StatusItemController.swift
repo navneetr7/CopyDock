@@ -11,7 +11,7 @@ final class StatusItemController: NSObject {
         if let button = item.button {
             button.image = statusImage()
             button.imagePosition = .imageOnly
-            button.toolTip = "Clipy"
+            button.toolTip = "CopyDock"
             button.target = self
             button.action = #selector(handleStatusItemClick(_:))
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -34,11 +34,11 @@ final class StatusItemController: NSObject {
     }
 
     @objc private func openDrawer() {
-        NotificationCenter.default.post(name: .openClipyDrawer, object: nil)
+        NotificationCenter.default.post(name: .openCopyDockDrawer, object: nil)
     }
 
     @objc private func openSettings() {
-        NotificationCenter.default.post(name: .openClipySettings, object: nil)
+        NotificationCenter.default.post(name: .openCopyDockSettings, object: nil)
     }
 
     @objc private func quit() {
@@ -49,10 +49,10 @@ final class StatusItemController: NSObject {
         guard let statusItem, let button = statusItem.button else { return }
 
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "Open Clipy", action: #selector(openDrawer), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Open CopyDock", action: #selector(openDrawer), keyEquivalent: ""))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ","))
-        menu.addItem(NSMenuItem(title: "Quit Clipy", action: #selector(quit), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: "Quit CopyDock", action: #selector(quit), keyEquivalent: "q"))
         menu.items.forEach { $0.target = self }
 
         statusItem.menu = menu
@@ -61,9 +61,9 @@ final class StatusItemController: NSObject {
     }
 
     private func statusImage() -> NSImage? {
-        let image = Bundle.main.image(forResource: "clipy_menubar")
-            ?? NSImage(named: "clipy_menubar")
-            ?? NSImage(systemSymbolName: "doc.on.clipboard.fill", accessibilityDescription: "Clipy")
+        let image = Bundle.main.image(forResource: "copydock_menubar")
+            ?? NSImage(named: "copydock_menubar")
+            ?? NSImage(systemSymbolName: "doc.on.clipboard.fill", accessibilityDescription: "CopyDock")
 
         image?.size = NSSize(width: 18, height: 18)
         return image
