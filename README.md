@@ -1,6 +1,6 @@
 # Clipy
 
-<img width="2439" height="1220" alt="Lipy (1)" src="https://github.com/user-attachments/assets/031c2500-d60a-45ed-9822-277dcc68060e" />
+
 
 
 
