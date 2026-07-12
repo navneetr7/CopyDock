@@ -1,6 +1,7 @@
 # CopyDock
 
 
+<img width="1774" height="887" alt="Lipy" src="https://github.com/user-attachments/assets/a015299e-8ebd-4b45-8945-f623a42fe0fc" />
 
 
 
